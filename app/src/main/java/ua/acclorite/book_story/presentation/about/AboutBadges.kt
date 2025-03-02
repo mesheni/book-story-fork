@@ -24,36 +24,5 @@ import ua.acclorite.book_story.ui.about.AboutEvent
 fun AboutBadges(
     navigateToBrowserPage: (AboutEvent.OnNavigateToBrowserPage) -> Unit
 ) {
-    val context = LocalContext.current
 
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        items(
-            Constants.provideAboutBadges(),
-            key = { it.id }
-        ) { badge ->
-            AboutBadgeItem(badge = badge) {
-                when (badge.id) {
-                    "tryzub" -> {
-                        context.getString(R.string.slava_ukraini)
-                            .showToast(context = context, longToast = false)
-                    }
-
-                    else -> {
-                        badge.url?.let {
-                            navigateToBrowserPage(
-                                AboutEvent.OnNavigateToBrowserPage(
-                                    page = it,
-                                    context = context
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
