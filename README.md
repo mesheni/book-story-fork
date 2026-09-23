@@ -9,6 +9,22 @@
 
 ---
 
+<!------------ Fork notice ------------>
+
+> [!Note]
+>
+> **Это форк** [Acclorite/book-story](https://github.com/Acclorite/book-story) с русской
+> локализацией и небольшими личными правками. Отличия от оригинала:
+>
+> - 🇷🇺 Полная русская локализация — в оригинале русского языка нет. Русский добавлен в список
+>   языков приложения; новые экраны оригинала переводятся при каждой синхронизации.
+> - 🚫 Скрыты бейджи на экране «О приложении» и связанная с ними строка.
+> - 🔄 `master` следует за оригиналом (fast-forward), все релизные теги оригинала сохранены —
+>   удаление исходного репозитория ничего не потеряет.
+> - 📦 Кастомизации живут в ветке `new_features` (rebase на актуальный `master`).
+
+---
+
 <!------------ Header ------------>
 
 <div align="center">
@@ -24,7 +40,7 @@
 
 <div align="center">
 
-<a href="">[![GitHub](https://img.shields.io/github/release/Acclorite/book-story.svg?labelColor=27303D&color=3f719b&label=GitHub&logo=GitHub)](https://github.com/Acclorite/book-story/releases)</a>
+<a href="">[![GitHub](https://img.shields.io/github/release/mesheni/book-story-fork.svg?labelColor=27303D&color=3f719b&label=GitHub&logo=GitHub)](https://github.com/mesheni/book-story-fork/releases)</a>
 <a href="">[![GitLab](https://img.shields.io/gitlab/v/release/Acclorite/book-story.svg?labelColor=27303D&color=9b753f&label=GitLab&logo=gitlab)](https://gitlab.com/Acclorite/book-story/-/releases)</a>
 <a href="">[![Codeberg](https://img.shields.io/badge/Latest-3f9b9b?label=Codeberg&labelColor=27303D&logo=codeberg)](https://codeberg.org/Acclorite/book-story/releases)</a>
 <a href="">[![F-Droid](https://img.shields.io/f-droid/v/ua.acclorite.book_story?labelColor=27303D&color=3f9b5a&label=F-Droid&logo=f-droid)](https://f-droid.org/packages/ua.acclorite.book_story/)</a>
@@ -84,7 +100,7 @@ open-source, offering you a personalized, ad-free journey through your favorite 
 
 <div>
 
-[<img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" alt='Get it on GitHub' height="80">](https://github.com/Acclorite/book-story/releases/latest)
+[<img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" alt='Get it on GitHub' height="80">](https://github.com/mesheni/book-story-fork/releases/latest)
 [<img src="fastlane/metadata/android/en-US/images/gitlab-badge.png" alt='Get it on GitLab' height="80">](https://gitlab.com/Acclorite/book-story/-/releases)
 [<img src="fastlane/metadata/android/en-US/images/codeberg-badge.png" alt='Get it on Codeberg' height="80">](https://codeberg.org/Acclorite/book-story/releases)
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">](https://f-droid.org/en/packages/ua.acclorite.book_story/)
@@ -117,6 +133,9 @@ open-source, offering you a personalized, ad-free journey through your favorite 
 > on [Hosted Weblate](https://hosted.weblate.org/engage/book-story/).
 >
 > I am thankful to everyone who helps make this app more accessible to others by translating it!
+>
+> 🇷🇺 Русская локализация поддерживается в этом форке: переводы новых экранов добавляются
+> вручную при синхронизации с оригиналом.
 
 [<img src="https://hosted.weblate.org/widget/book-story/book-story-translation/horizontal-auto.svg" alt="Translation progress">](https://hosted.weblate.org/engage/book-story/)
 <br/>
