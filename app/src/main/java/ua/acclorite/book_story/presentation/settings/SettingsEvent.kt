@@ -13,6 +13,10 @@ import ua.acclorite.book_story.domain.model.library.Category
 
 @Immutable
 sealed class SettingsEvent {
+    data class OnUpdateReadingStatistics(
+        val enabled: Boolean
+    ) : SettingsEvent()
+
     data class OnUpdateLanguage(
         val language: Language
     ) : SettingsEvent()

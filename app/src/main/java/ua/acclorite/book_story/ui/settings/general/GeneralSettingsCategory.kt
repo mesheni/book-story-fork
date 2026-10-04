@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import ua.acclorite.book_story.ui.settings.general.components.AppLanguageOption
 import ua.acclorite.book_story.ui.settings.general.components.DoublePressExitOption
+import ua.acclorite.book_story.ui.settings.general.components.ReadingStatisticsOption
 
 fun LazyListScope.GeneralSettingsCategory(
     topPadding: Dp = 16.dp,
@@ -32,6 +33,10 @@ fun LazyListScope.GeneralSettingsCategory(
 
     item {
         DoublePressExitOption()
+    }
+
+    item {
+        ReadingStatisticsOption()
     }
 
     item {

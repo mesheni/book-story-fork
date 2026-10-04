@@ -3,7 +3,6 @@
  * Copyright (C) 2024-2026 Acclorite
  * SPDX-License-Identifier: GPL-3.0-only
  */
-
 package ua.acclorite.book_story.presentation.reader
 
 import androidx.compose.foundation.lazy.LazyListState
@@ -39,6 +38,8 @@ import ua.acclorite.book_story.domain.use_case.book.GetFileFromBookUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetTextUseCase
 import ua.acclorite.book_story.domain.use_case.book.UpdateBookUseCase
 import ua.acclorite.book_story.domain.use_case.history.GetHistoryForBookUseCase
+import ua.acclorite.book_story.domain.service.ReadingSessionTracker
+import ua.acclorite.book_story.data.settings.SettingsManager
 import ua.acclorite.book_story.presentation.history.HistoryScreen
 import ua.acclorite.book_story.presentation.library.LibraryScreen
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
@@ -53,7 +54,9 @@ class ReaderModel @Inject constructor(
     private val getBookUseCase: GetBookUseCase,
     private val getFileFromBookUseCase: GetFileFromBookUseCase,
     private val getHistoryForBookUseCase: GetHistoryForBookUseCase,
-    private val getChapterProgressUseCase: GetChapterProgressUseCase
+    private val getChapterProgressUseCase: GetChapterProgressUseCase,
+    private val readingSessionTracker: ReadingSessionTracker,
+    private val settingsManager: SettingsManager
 ) : ViewModel() {
 
     private val mutex = Mutex()
@@ -91,6 +94,12 @@ class ReaderModel @Inject constructor(
                         _effects.emit(ReaderEffect.OnSystemBarsVisibility(show = null))
 
                         val lastOpened = getHistoryForBookUseCase(_state.value.book.id)?.time
+                        readingSessionTracker.startReader(
+                            book = _state.value.book,
+                            format = _state.value.book.filePath.substringAfterLast('.', "unknown")
+                                .uppercase(),
+                            enabled = settingsManager.readingStatisticsEnabled.lastValue
+                        )
                         _state.update {
                             it.copy(
                                 showMenu = false,
@@ -100,6 +109,7 @@ class ReaderModel @Inject constructor(
                                 text = text
                             )
                         }
+                        readingSessionTracker.activity(_state.value.book.progress)
                         ensureActive()
 
                         updateBookUseCase(_state.value.book)
@@ -148,6 +158,14 @@ class ReaderModel @Inject constructor(
                 is ReaderEvent.OnPdfPageChanged -> {
                     if (_state.value.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) return@launch
 
+                    if (_state.value.pdfPageCount == 0) {
+                        readingSessionTracker.startReader(
+                            book = _state.value.book,
+                            format = "PDF",
+                            enabled = settingsManager.readingStatisticsEnabled.lastValue
+                        )
+                    }
+
                     val progress = if (event.pageCount <= 1) 0f
                     else event.page.toFloat() / (event.pageCount - 1).toFloat()
                     val book = _state.value.book.copy(
@@ -160,6 +178,7 @@ class ReaderModel @Inject constructor(
                             pdfPageCount = event.pageCount
                         )
                     }
+                    readingSessionTracker.activity(progress)
                     updateBookUseCase(book)
                     LibraryScreen.refreshListChannel.trySend(300)
                     HistoryScreen.refreshListChannel.trySend(300)
@@ -188,6 +207,7 @@ class ReaderModel @Inject constructor(
                 }
 
                 is ReaderEvent.OnMenuVisibility -> {
+                    if (event.show) readingSessionTracker.activity()
                     withContext(Dispatchers.Default) {
                         if (_state.value.lockMenu) return@withContext
 
@@ -234,6 +254,8 @@ class ReaderModel @Inject constructor(
                         }
 
                         updateBookUseCase(_state.value.book)
+
+                        readingSessionTracker.activity(_state.value.book.progress)
 
                         LibraryScreen.refreshListChannel.trySend(300)
                         HistoryScreen.refreshListChannel.trySend(300)
@@ -320,6 +342,7 @@ class ReaderModel @Inject constructor(
                 }
 
                 is ReaderEvent.OnLeave -> {
+                    readingSessionTracker.stopReader()
                     _state.update {
                         it.copy(
                             lockMenu = true
@@ -476,6 +499,14 @@ class ReaderModel @Inject constructor(
             }
             _state.update { ReaderState() }
         }
+    }
+
+    fun setReadingForeground(foreground: Boolean) {
+        viewModelScope.launch { readingSessionTracker.setForeground(foreground) }
+    }
+
+    fun onReaderDisposed() {
+        viewModelScope.launch { readingSessionTracker.stopReader() }
     }
 
     suspend fun clear() {

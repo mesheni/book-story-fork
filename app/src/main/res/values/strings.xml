@@ -13,6 +13,7 @@
     <string name="library_screen">Library</string>
     <string name="history_screen">History</string>
     <string name="browse_screen">Browse</string>
+    <string name="back">Back</string>
     <string name="settings_screen">Settings</string>
     <string name="about_screen">About app</string>
 
@@ -138,6 +139,8 @@
     <string name="browse_settings_desc">Scan, display</string>
     <string name="library_settings">Library</string>
     <string name="library_settings_desc">Categories, display, tabs</string>
+    <string name="reading_statistics">Reading statistics</string>
+    <string name="reading_statistics_desc">Time, sessions, books</string>
 
     <!-- Settings subcategories -->
     <string name="font_reader_settings">Font</string>
@@ -189,6 +192,22 @@
     <string name="double_press_exit_option_desc">Press back twice to exit the app</string>
     <string name="show_navigation_labels_option">Show navigation labels</string>
     <string name="show_navigation_labels_option_desc">Show navigation bar labels under icons</string>
+    <string name="reading_statistics_collect">Collect reading statistics</string>
+    <string name="reading_statistics_collect_desc">Store reading activity locally on this device</string>
+    <string name="statistics_today">Today</string>
+    <string name="statistics_week">Last 7 days</string>
+    <string name="statistics_books">Books</string>
+    <string name="statistics_empty">No reading data yet</string>
+    <string name="statistics_books_empty">No book statistics yet</string>
+    <string name="statistics_sessions">Sessions: %1$d</string>
+    <string name="statistics_streak">Reading streak: %1$d days</string>
+    <string name="statistics_progress">Progress: %1$d%%</string>
+    <string name="statistics_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="statistics_duration_minutes">%1$d min</string>
+    <string name="statistics_export">Export CSV</string>
+    <string name="statistics_export_error">Could not export statistics</string>
+    <string name="statistics_clear">Clear statistics</string>
+    <string name="statistics_clear_confirm">This only deletes reading statistics. Your reading history and library will not change.</string>
 
     <!-- Reader -->
     <string name="font_family_option">Font family</string>

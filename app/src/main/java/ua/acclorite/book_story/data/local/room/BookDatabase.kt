@@ -19,6 +19,7 @@ import ua.acclorite.book_story.data.local.dto.BookEntity
 import ua.acclorite.book_story.data.local.dto.CategoryEntity
 import ua.acclorite.book_story.data.local.dto.ColorPresetEntity
 import ua.acclorite.book_story.data.local.dto.HistoryEntity
+import ua.acclorite.book_story.data.local.dto.ReadingSessionEntity
 import java.io.File
 
 @Database(
@@ -26,9 +27,10 @@ import java.io.File
         BookEntity::class,
         HistoryEntity::class,
         ColorPresetEntity::class,
-        CategoryEntity::class
+        CategoryEntity::class,
+        ReadingSessionEntity::class
     ],
-    version = 17,
+    version = 18,
     autoMigrations = [
         AutoMigration(1, 2),
         AutoMigration(2, 3),
@@ -53,6 +55,7 @@ abstract class BookDatabase : RoomDatabase() {
     abstract val historyDao: HistoryDao
     abstract val colorPresetDao: ColorPresetDao
     abstract val categoryDao: CategoryDao
+    abstract val readingSessionDao: ReadingSessionDao
 }
 
 @Suppress("ClassName")
@@ -249,6 +252,31 @@ object DatabaseHelper {
             database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfOpenMode TEXT DEFAULT NULL")
             database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfPage INTEGER NOT NULL DEFAULT 0")
             database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfProgress REAL NOT NULL DEFAULT 0.0")
+        }
+    }
+
+    val MANUAL_MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `ReadingSessionEntity` (
+                    `sessionId` TEXT NOT NULL,
+                    `dayEpoch` INTEGER NOT NULL,
+                    `bookId` INTEGER,
+                    `bookTitle` TEXT NOT NULL,
+                    `startedAt` INTEGER NOT NULL,
+                    `durationMillis` INTEGER NOT NULL,
+                    `format` TEXT NOT NULL,
+                    `startProgress` REAL NOT NULL,
+                    `endProgress` REAL NOT NULL,
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_ReadingSessionEntity_sessionId_dayEpoch` " +
+                        "ON `ReadingSessionEntity` (`sessionId`, `dayEpoch`)"
+            )
         }
     }
 }

@@ -110,6 +110,9 @@ class SettingsManager @Inject constructor(
     val doublePressExit = setting<Boolean, Boolean>(
         key = booleanPreferencesKey("double_press_exit"), default = false
     )
+    val readingStatisticsEnabled = setting<Boolean, Boolean>(
+        key = booleanPreferencesKey("reading_statistics_enabled"), default = true
+    )
     val showNavigationLabels = setting<Boolean, Boolean>(
         key = booleanPreferencesKey("show_navigation_labels"), default = true
     )
