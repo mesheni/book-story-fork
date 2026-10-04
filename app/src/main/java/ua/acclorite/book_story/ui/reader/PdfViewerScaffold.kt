@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
+import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
 import ua.acclorite.book_story.ui.common.components.common.AnimatedVisibility
 
 @Composable
@@ -22,13 +23,27 @@ fun PdfViewerScaffold(
     book: Book,
     uri: String?,
     initialPage: Int,
+    navigationRequest: Int,
     pageCount: Int,
+    isLoading: Boolean,
+    viewerError: String?,
     showMenu: Boolean,
     lockMenu: Boolean,
     leave: (ReaderEvent.OnLeave) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
     showPdfModeDialog: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
-    onPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit
+    onPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit,
+    onViewerInitialized: (ReaderEvent.OnPdfViewerInitialized) -> Unit,
+    showPdfSearch: Boolean,
+    pdfSearchQuery: String,
+    pdfSearchResults: List<PdfSearchResult>,
+    isPdfSearching: Boolean,
+    pdfSearchError: String?,
+    showPdfSearchAction: (ReaderEvent.OnShowPdfSearch) -> Unit,
+    onToggleMenu: (ReaderEvent.OnMenuVisibility) -> Unit,
+    dismissPdfSearch: (ReaderEvent.OnDismissPdfSearch) -> Unit,
+    pdfSearchQueryChanged: (ReaderEvent.OnPdfSearchQueryChanged) -> Unit,
+    selectPdfSearchResult: (ReaderEvent.OnSelectPdfSearchResult) -> Unit
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -46,7 +61,8 @@ fun PdfViewerScaffold(
                     lockMenu = lockMenu,
                     leave = leave,
                     navigateBack = navigateBack,
-                    showPdfModeDialog = showPdfModeDialog
+                    showPdfModeDialog = showPdfModeDialog,
+                    showPdfSearch = showPdfSearchAction
                 )
             }
         }
@@ -54,7 +70,26 @@ fun PdfViewerScaffold(
         PdfViewerContent(
             uriString = uri,
             initialPage = initialPage,
-            onPageChanged = onPageChanged
+            navigationRequest = navigationRequest,
+            onPageChanged = onPageChanged,
+            isLoading = isLoading,
+            viewerError = viewerError,
+            onViewerInitialized = onViewerInitialized,
+            onToggleMenu = {
+                onToggleMenu(ReaderEvent.OnMenuVisibility(show = !showMenu, saveCheckpoint = false))
+            }
+        )
+    }
+
+    if (showPdfSearch) {
+        PdfSearchDialog(
+            query = pdfSearchQuery,
+            results = pdfSearchResults,
+            isSearching = isPdfSearching,
+            error = pdfSearchError,
+            onQueryChange = { pdfSearchQueryChanged(ReaderEvent.OnPdfSearchQueryChanged(it)) },
+            onDismiss = { dismissPdfSearch(ReaderEvent.OnDismissPdfSearch) },
+            onSelectResult = { selectPdfSearchResult(ReaderEvent.OnSelectPdfSearchResult(it)) }
         )
     }
 }

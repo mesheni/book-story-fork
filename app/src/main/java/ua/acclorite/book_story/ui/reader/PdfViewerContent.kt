@@ -11,6 +11,7 @@ import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -31,19 +33,28 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
+import ua.acclorite.book_story.R
 
 @Composable
 fun PdfViewerContent(
     uriString: String?,
     initialPage: Int,
-    onPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit
+    navigationRequest: Int,
+    onPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit,
+    isLoading: Boolean,
+    viewerError: String?,
+    onViewerInitialized: (ReaderEvent.OnPdfViewerInitialized) -> Unit,
+    onToggleMenu: () -> Unit
 ) {
     val context = LocalContext.current
     var rendererState by remember(uriString) { mutableStateOf<PdfRenderer?>(null) }
@@ -61,14 +72,30 @@ fun PdfViewerContent(
     }
 
     LaunchedEffect(uriString) {
-        val uri = uriString?.toUri() ?: return@LaunchedEffect
-        withContext(Dispatchers.IO) {
-            val descriptor = context.contentResolver.openFileDescriptor(uri, "r")
-                ?: return@withContext
-            val renderer = PdfRenderer(descriptor)
-            descriptorState = descriptor
-            rendererState = renderer
-            pageCount = renderer.pageCount
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val uri = uriString?.toUri() ?: error("Missing PDF URI")
+                val descriptor = context.contentResolver.openFileDescriptor(uri, "r")
+                    ?: error("Unable to open PDF")
+                try {
+                    val renderer = PdfRenderer(descriptor)
+                    descriptorState = descriptor
+                    rendererState = renderer
+                    pageCount = renderer.pageCount
+                    onViewerInitialized(ReaderEvent.OnPdfViewerInitialized(renderer.pageCount))
+                } catch (error: Exception) {
+                    descriptor.close()
+                    throw error
+                }
+            }
+        }.onFailure { error ->
+            if (error is CancellationException) throw error
+            onViewerInitialized(
+                ReaderEvent.OnPdfViewerInitialized(
+                    pageCount = 0,
+                    error = error.message ?: "PDF open failed"
+                )
+            )
         }
     }
 
@@ -85,7 +112,20 @@ fun PdfViewerContent(
             }
     }
 
-    if (rendererState == null || pageCount == 0) {
+    LaunchedEffect(navigationRequest, pageCount) {
+        if (pageCount > 0) {
+            listState.scrollToItem(initialPage.coerceIn(0, pageCount - 1))
+        }
+    }
+
+    if (viewerError != null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.pdf_viewer_error))
+        }
+        return
+    }
+
+    if (isLoading || rendererState == null || pageCount == 0) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
@@ -96,7 +136,10 @@ fun PdfViewerContent(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.colorScheme.surface)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { onToggleMenu() })
+            },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         items(pageCount) { pageIndex ->

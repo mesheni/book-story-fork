@@ -9,6 +9,7 @@ package ua.acclorite.book_story.ui.reader
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.TextSnippet
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +29,8 @@ fun PdfViewerTopBar(
     lockMenu: Boolean,
     leave: (ReaderEvent.OnLeave) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
-    showPdfModeDialog: (ReaderEvent.OnShowPdfModeDialog) -> Unit
+    showPdfModeDialog: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
+    showPdfSearch: (ReaderEvent.OnShowPdfSearch) -> Unit
 ) {
     TopAppBar(
         navigationIcon = {
@@ -55,6 +57,17 @@ fun PdfViewerTopBar(
             )
         },
         actions = {
+            IconButton(
+                enabled = !lockMenu,
+                onClick = { showPdfSearch(ReaderEvent.OnShowPdfSearch) }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = androidx.compose.ui.res.stringResource(
+                        ua.acclorite.book_story.R.string.search_pdf
+                    )
+                )
+            }
             StyledText(
                 text = if (pageCount > 0) "${page + 1} / $pageCount" else "",
                 style = MaterialTheme.typography.labelLarge

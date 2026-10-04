@@ -90,6 +90,7 @@ class BookRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             database.bookDao.deleteBook(bookMapper.toBookEntity(book)).also {
                 if (it == 0) throw Exception("Could not delete book in database.")
+                database.pdfPageTextDao.deletePagesForBook(book.id)
             }
         }
     }

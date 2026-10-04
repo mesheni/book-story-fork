@@ -28,6 +28,7 @@ import ua.acclorite.book_story.core.ui.UIText
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import ua.acclorite.book_story.domain.model.reader.ReaderText
+import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
@@ -63,11 +64,25 @@ fun ReaderContent(
     showPdfModeDialog: Boolean,
     pdfUri: String?,
     pdfPage: Int,
+    pdfNavigationRequest: Int,
     pdfPageCount: Int,
+    isPdfViewerLoading: Boolean,
+    pdfViewerError: String?,
+    showPdfSearch: Boolean,
+    pdfSearchQuery: String,
+    pdfSearchResults: List<PdfSearchResult>,
+    isPdfSearching: Boolean,
+    pdfSearchError: String?,
     selectPdfMode: (ReaderEvent.OnSelectPdfMode) -> Unit,
     dismissPdfModeDialog: (ReaderEvent.OnDismissPdfModeDialog) -> Unit,
     showPdfModeDialogAction: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
     pdfPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit,
+    pdfViewerInitialized: (ReaderEvent.OnPdfViewerInitialized) -> Unit,
+    showPdfSearchAction: (ReaderEvent.OnShowPdfSearch) -> Unit,
+    pdfMenuVisibility: (ReaderEvent.OnMenuVisibility) -> Unit,
+    dismissPdfSearch: (ReaderEvent.OnDismissPdfSearch) -> Unit,
+    pdfSearchQueryChanged: (ReaderEvent.OnPdfSearchQueryChanged) -> Unit,
+    selectPdfSearchResult: (ReaderEvent.OnSelectPdfSearchResult) -> Unit,
     checkpoints: List<Checkpoint>,
     showMenu: Boolean,
     lockMenu: Boolean,
@@ -147,13 +162,27 @@ fun ReaderContent(
             book = book,
             uri = pdfUri,
             initialPage = pdfPage,
+            navigationRequest = pdfNavigationRequest,
             pageCount = pdfPageCount,
+            isLoading = isPdfViewerLoading,
+            viewerError = pdfViewerError,
             showMenu = showMenu,
             lockMenu = lockMenu,
             leave = leave,
             navigateBack = navigateBack,
             showPdfModeDialog = showPdfModeDialogAction,
-            onPageChanged = pdfPageChanged
+            onPageChanged = pdfPageChanged,
+            onViewerInitialized = pdfViewerInitialized,
+            showPdfSearch = showPdfSearch,
+            pdfSearchQuery = pdfSearchQuery,
+            pdfSearchResults = pdfSearchResults,
+            isPdfSearching = isPdfSearching,
+            pdfSearchError = pdfSearchError,
+            showPdfSearchAction = showPdfSearchAction,
+            onToggleMenu = pdfMenuVisibility,
+            dismissPdfSearch = dismissPdfSearch,
+            pdfSearchQueryChanged = pdfSearchQueryChanged,
+            selectPdfSearchResult = selectPdfSearchResult
         )
     } else if (isLoading || errorMessage == null) {
         ReaderScaffold(

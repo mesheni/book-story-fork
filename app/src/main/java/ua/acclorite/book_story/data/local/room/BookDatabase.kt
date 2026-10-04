@@ -19,6 +19,7 @@ import ua.acclorite.book_story.data.local.dto.BookEntity
 import ua.acclorite.book_story.data.local.dto.CategoryEntity
 import ua.acclorite.book_story.data.local.dto.ColorPresetEntity
 import ua.acclorite.book_story.data.local.dto.HistoryEntity
+import ua.acclorite.book_story.data.local.dto.PdfPageTextEntity
 import ua.acclorite.book_story.data.local.dto.ReadingSessionEntity
 import java.io.File
 
@@ -28,9 +29,10 @@ import java.io.File
         HistoryEntity::class,
         ColorPresetEntity::class,
         CategoryEntity::class,
-        ReadingSessionEntity::class
+        ReadingSessionEntity::class,
+        PdfPageTextEntity::class
     ],
-    version = 18,
+    version = 19,
     autoMigrations = [
         AutoMigration(1, 2),
         AutoMigration(2, 3),
@@ -56,6 +58,7 @@ abstract class BookDatabase : RoomDatabase() {
     abstract val colorPresetDao: ColorPresetDao
     abstract val categoryDao: CategoryDao
     abstract val readingSessionDao: ReadingSessionDao
+    abstract val pdfPageTextDao: PdfPageTextDao
 }
 
 @Suppress("ClassName")
@@ -276,6 +279,22 @@ object DatabaseHelper {
             database.execSQL(
                 "CREATE UNIQUE INDEX IF NOT EXISTS `index_ReadingSessionEntity_sessionId_dayEpoch` " +
                         "ON `ReadingSessionEntity` (`sessionId`, `dayEpoch`)"
+            )
+        }
+    }
+
+    val MANUAL_MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `PdfPageTextEntity` (
+                    `bookId` INTEGER NOT NULL,
+                    `pageIndex` INTEGER NOT NULL,
+                    `sourceSignature` TEXT NOT NULL,
+                    `text` TEXT NOT NULL,
+                    PRIMARY KEY(`bookId`, `pageIndex`)
+                )
+                """.trimIndent()
             )
         }
     }

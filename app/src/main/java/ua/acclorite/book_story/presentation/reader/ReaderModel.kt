@@ -36,6 +36,7 @@ import ua.acclorite.book_story.domain.use_case.book.GetBookUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetChapterProgressUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetFileFromBookUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetTextUseCase
+import ua.acclorite.book_story.domain.use_case.book.SearchPdfPagesUseCase
 import ua.acclorite.book_story.domain.use_case.book.UpdateBookUseCase
 import ua.acclorite.book_story.domain.use_case.history.GetHistoryForBookUseCase
 import ua.acclorite.book_story.domain.service.ReadingSessionTracker
@@ -56,7 +57,8 @@ class ReaderModel @Inject constructor(
     private val getHistoryForBookUseCase: GetHistoryForBookUseCase,
     private val getChapterProgressUseCase: GetChapterProgressUseCase,
     private val readingSessionTracker: ReadingSessionTracker,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val searchPdfPagesUseCase: SearchPdfPagesUseCase
 ) : ViewModel() {
 
     private val mutex = Mutex()
@@ -68,6 +70,8 @@ class ReaderModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     private var scrollJob: Job? = null
+    private var pdfSearchJob: Job? = null
+    private var pdfSearchGeneration = 0
     private val eventStack = mutableListOf<Job>()
 
     fun onEvent(event: ReaderEvent) {
@@ -129,6 +133,7 @@ class ReaderModel @Inject constructor(
                             it.copy(
                                 book = book,
                                 showPdfModeDialog = false,
+                                showMenu = event.mode == PdfOpenMode.NATIVE_PDF,
                                 isLoading = event.mode == PdfOpenMode.TEXT,
                                 errorMessage = null,
                                 text = if (event.mode == PdfOpenMode.TEXT) it.text else emptyList()
@@ -182,6 +187,94 @@ class ReaderModel @Inject constructor(
                     updateBookUseCase(book)
                     LibraryScreen.refreshListChannel.trySend(300)
                     HistoryScreen.refreshListChannel.trySend(300)
+                }
+
+                is ReaderEvent.OnPdfViewerInitialized -> {
+                    _state.update {
+                        it.copy(
+                            pdfPageCount = event.pageCount,
+                            isPdfViewerLoading = false,
+                            pdfViewerError = event.error
+                        )
+                    }
+                }
+
+                is ReaderEvent.OnShowPdfSearch -> {
+                    _state.update {
+                        it.copy(
+                            showPdfSearch = true,
+                            pdfSearchQuery = "",
+                            pdfSearchResults = emptyList(),
+                            isPdfSearching = false,
+                            pdfSearchError = null
+                        )
+                    }
+                }
+
+                is ReaderEvent.OnDismissPdfSearch -> {
+                    pdfSearchGeneration++
+                    pdfSearchJob?.cancel()
+                    _state.update {
+                        it.copy(
+                            showPdfSearch = false,
+                            isPdfSearching = false,
+                            pdfSearchError = null
+                        )
+                    }
+                }
+
+                is ReaderEvent.OnPdfSearchQueryChanged -> {
+                    pdfSearchGeneration++
+                    val generation = pdfSearchGeneration
+                    val query = event.query
+                    val bookId = _state.value.book.id
+                    _state.update {
+                        it.copy(
+                            pdfSearchQuery = query,
+                            pdfSearchResults = if (query.isBlank()) emptyList() else it.pdfSearchResults,
+                            pdfSearchError = null,
+                            isPdfSearching = query.isNotBlank()
+                        )
+                    }
+                    pdfSearchJob?.cancel()
+                    if (query.isNotBlank()) {
+                        pdfSearchJob = viewModelScope.launch(Dispatchers.IO) {
+                            delay(250)
+                            searchPdfPagesUseCase(bookId, query)
+                                .onSuccess { results ->
+                                    if (generation != pdfSearchGeneration) return@onSuccess
+                                    _state.update {
+                                        it.copy(
+                                            pdfSearchResults = results,
+                                            isPdfSearching = false
+                                        )
+                                    }
+                                }
+                                .onFailure { error ->
+                                    if (generation != pdfSearchGeneration) return@onFailure
+                                    _state.update {
+                                        it.copy(
+                                            isPdfSearching = false,
+                                            pdfSearchError = error.message
+                                        )
+                                    }
+                                }
+                        }
+                    }
+                }
+
+                is ReaderEvent.OnSelectPdfSearchResult -> {
+                    pdfSearchGeneration++
+                    pdfSearchJob?.cancel()
+                    _state.update {
+                        it.copy(
+                            book = it.book.copy(pdfPage = event.page),
+                            pdfNavigationRequest = it.pdfNavigationRequest + 1,
+                            showPdfSearch = false,
+                            isPdfSearching = false
+                        )
+                    }
+                    updateBookUseCase(_state.value.book)
                 }
 
                 is ReaderEvent.OnRestoreScroll -> {
@@ -472,9 +565,11 @@ class ReaderModel @Inject constructor(
             _state.update {
                 ReaderState(
                     book = book,
+                    showMenu = book.pdfOpenMode == PdfOpenMode.NATIVE_PDF,
                     pdfUri = if (book.filePath.endsWith(".pdf", true)) {
                         getFileFromBookUseCase(bookId)?.uri
                     } else null,
+                    isPdfViewerLoading = book.pdfOpenMode == PdfOpenMode.NATIVE_PDF,
                     showPdfModeDialog = book.filePath.endsWith(".pdf", true) &&
                             book.pdfOpenMode == null,
                     isLoading = !(book.filePath.endsWith(".pdf", true) &&

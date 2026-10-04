@@ -62,6 +62,7 @@ object AppModule {
             DatabaseHelper.MANUAL_MIGRATION_15_16, // merge CategoryEntity and CategorySortEntity
             DatabaseHelper.MANUAL_MIGRATION_16_17, // add PDF source and reader state
             DatabaseHelper.MANUAL_MIGRATION_17_18, // add local reading statistics
+            DatabaseHelper.MANUAL_MIGRATION_18_19, // cache extracted PDF page text
         ).allowMainThreadQueries().build().also { database ->
             // Additional Migrations
             DatabaseHelper.AUTO_MIGRATION_7_8.removeBooksDir(app)

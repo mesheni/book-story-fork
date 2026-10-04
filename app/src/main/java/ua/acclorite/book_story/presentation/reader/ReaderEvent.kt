@@ -29,6 +29,16 @@ sealed class ReaderEvent {
         val pageCount: Int
     ) : ReaderEvent()
 
+    data class OnPdfViewerInitialized(val pageCount: Int, val error: String? = null) : ReaderEvent()
+
+    data object OnShowPdfSearch : ReaderEvent()
+
+    data object OnDismissPdfSearch : ReaderEvent()
+
+    data class OnPdfSearchQueryChanged(val query: String) : ReaderEvent()
+
+    data class OnSelectPdfSearchResult(val page: Int) : ReaderEvent()
+
     data object OnRestoreScroll : ReaderEvent()
 
     data class OnMenuVisibility(
