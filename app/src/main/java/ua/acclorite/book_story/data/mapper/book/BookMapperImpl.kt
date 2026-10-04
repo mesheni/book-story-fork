@@ -11,6 +11,7 @@ import ua.acclorite.book_story.R
 import ua.acclorite.book_story.core.ui.UIText
 import ua.acclorite.book_story.data.local.dto.BookEntity
 import ua.acclorite.book_story.domain.model.library.Book
+import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import javax.inject.Inject
 
 class BookMapperImpl @Inject constructor() : BookMapper {
@@ -25,7 +26,11 @@ class BookMapperImpl @Inject constructor() : BookMapper {
             author = book.author.getAsString() ?: "",
             description = book.description,
             image = book.coverImage?.toString(),
-            categories = book.categories
+            categories = book.categories,
+            sourceUri = book.sourceUri,
+            pdfOpenMode = book.pdfOpenMode?.name,
+            pdfPage = book.pdfPage,
+            pdfProgress = book.pdfProgress
         )
     }
 
@@ -44,7 +49,13 @@ class BookMapperImpl @Inject constructor() : BookMapper {
             filePath = bookEntity.filePath,
             lastOpened = null,
             coverImage = bookEntity.image?.toUri(),
-            categories = bookEntity.categories
+            categories = bookEntity.categories,
+            sourceUri = bookEntity.sourceUri,
+            pdfOpenMode = bookEntity.pdfOpenMode?.let { mode ->
+                runCatching { PdfOpenMode.valueOf(mode) }.getOrNull()
+            },
+            pdfPage = bookEntity.pdfPage,
+            pdfProgress = bookEntity.pdfProgress
         )
     }
 }

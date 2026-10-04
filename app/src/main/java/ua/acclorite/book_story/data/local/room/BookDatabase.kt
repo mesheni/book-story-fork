@@ -28,7 +28,7 @@ import java.io.File
         ColorPresetEntity::class,
         CategoryEntity::class
     ],
-    version = 16,
+    version = 17,
     autoMigrations = [
         AutoMigration(1, 2),
         AutoMigration(2, 3),
@@ -240,6 +240,15 @@ object DatabaseHelper {
             database.execSQL("DROP TABLE CategoryEntity")
             database.execSQL("DROP TABLE CategorySortEntity")
             database.execSQL("ALTER TABLE CategoryEntity_new RENAME TO CategoryEntity")
+        }
+    }
+
+    val MANUAL_MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN sourceUri TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfOpenMode TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfPage INTEGER NOT NULL DEFAULT 0")
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfProgress REAL NOT NULL DEFAULT 0.0")
         }
     }
 }

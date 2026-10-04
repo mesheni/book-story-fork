@@ -7,6 +7,7 @@
 package ua.acclorite.book_story.data.service
 
 import android.app.Application
+import androidx.core.net.toUri
 import ua.acclorite.book_story.data.model.file.CachedFile
 import ua.acclorite.book_story.data.model.file.CachedFileCompat
 import ua.acclorite.book_story.domain.model.library.Book
@@ -18,6 +19,13 @@ class FileProviderImpl @Inject constructor(
 ) : FileProvider {
 
     override fun getFileFromBook(book: Book): Result<CachedFile> = runCatching {
+        book.sourceUri?.let { sourceUri ->
+            val sourceFile = CachedFileCompat.fromUri(application, sourceUri.toUri())
+            if (!sourceFile.isDirectory && sourceFile.canAccess()) {
+                return@runCatching sourceFile
+            }
+        }
+
         application.contentResolver.persistedUriPermissions.forEach { storage ->
             val storageFile = CachedFileCompat.fromUri(
                 application,

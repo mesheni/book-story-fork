@@ -24,6 +24,14 @@ data class Book(
     val filePath: String,
     val coverImage: Uri?,
 
+    /** Original URI is required for standalone documents opened through another app. */
+    val sourceUri: String? = null,
+
+    /** Null means that the user has not selected a PDF opening mode yet. */
+    val pdfOpenMode: PdfOpenMode? = null,
+    val pdfPage: Int = 0,
+    val pdfProgress: Float = 0f,
+
     val scrollIndex: Int,
     val scrollOffset: Int,
     val progress: Float,
@@ -39,6 +47,10 @@ data class Book(
             description = null,
             filePath = "",
             coverImage = null,
+            sourceUri = null,
+            pdfOpenMode = null,
+            pdfPage = 0,
+            pdfProgress = 0f,
             scrollIndex = 0,
             scrollOffset = 0,
             progress = 0f,

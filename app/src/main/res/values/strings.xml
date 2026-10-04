@@ -98,6 +98,10 @@
     <string name="web_search">Web search</string>
     <string name="share">Share</string>
     <string name="ok">OK</string>
+    <string name="open_pdf_mode_content_desc">Change PDF opening mode</string>
+    <string name="open_pdf_mode_title">Open PDF</string>
+    <string name="open_pdf_as_text">Scan and open as text</string>
+    <string name="open_pdf_as_pages">Open as PDF</string>
     <string name="change_path">Change path</string>
     <string name="add_folder">Add folder</string>
     <string name="edit">Edit</string>

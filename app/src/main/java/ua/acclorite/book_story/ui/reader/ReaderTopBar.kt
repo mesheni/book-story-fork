@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,7 +54,8 @@ fun ReaderTopBar(
     showSettingsBottomSheet: (ReaderEvent.OnShowSettingsBottomSheet) -> Unit,
     showChaptersDrawer: (ReaderEvent.OnShowChaptersDrawer) -> Unit,
     navigateToBookInfo: (ReaderEvent.OnNavigateToBookInfo) -> Unit,
-    navigateBack: (ReaderEvent.OnNavigateBack) -> Unit
+    navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
+    togglePdfMode: () -> Unit
 ) {
     val activity = LocalActivity.current
     val animatedChapterProgress = animateFloatAsState(
@@ -136,6 +138,16 @@ fun ReaderTopBar(
                     ) {
                         showChaptersDrawer(ReaderEvent.OnShowChaptersDrawer)
                     }
+                }
+
+                if (book.filePath.endsWith(".pdf", ignoreCase = true)) {
+                    IconButton(
+                        icon = Icons.Default.PictureAsPdf,
+                        contentDescription = R.string.open_pdf_mode_content_desc,
+                        disableOnClick = false,
+                        enabled = !lockMenu,
+                        onClick = togglePdfMode
+                    )
                 }
 
                 IconButton(

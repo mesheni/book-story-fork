@@ -47,6 +47,15 @@ class BookRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getBookBySourceUri(sourceUri: String): Result<Book> = runCatching {
+        withContext(Dispatchers.IO) {
+            database.bookDao.findBookBySourceUri(sourceUri).let {
+                if (it == null) throw NoSuchElementException("Couldn't get book by source URI.")
+                else bookMapper.toBook(it)
+            }
+        }
+    }
+
     override suspend fun getText(bookId: Int): Result<List<ReaderText>> {
         return withContext(Dispatchers.IO) {
             getBook(bookId)

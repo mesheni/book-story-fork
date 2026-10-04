@@ -32,8 +32,10 @@ import ua.acclorite.book_story.R
 import ua.acclorite.book_story.core.helpers.coerceAndPreventNaN
 import ua.acclorite.book_story.core.ui.UIText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
+import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import ua.acclorite.book_story.domain.use_case.book.GetBookUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetChapterProgressUseCase
+import ua.acclorite.book_story.domain.use_case.book.GetFileFromBookUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetTextUseCase
 import ua.acclorite.book_story.domain.use_case.book.UpdateBookUseCase
 import ua.acclorite.book_story.domain.use_case.history.GetHistoryForBookUseCase
@@ -49,6 +51,7 @@ class ReaderModel @Inject constructor(
     private val updateBookUseCase: UpdateBookUseCase,
     private val getTextUseCase: GetTextUseCase,
     private val getBookUseCase: GetBookUseCase,
+    private val getFileFromBookUseCase: GetFileFromBookUseCase,
     private val getHistoryForBookUseCase: GetHistoryForBookUseCase,
     private val getChapterProgressUseCase: GetChapterProgressUseCase
 ) : ViewModel() {
@@ -106,6 +109,60 @@ class ReaderModel @Inject constructor(
 
                         onEvent(ReaderEvent.OnRestoreScroll)
                     }
+                }
+
+                is ReaderEvent.OnSelectPdfMode -> {
+                    withContext(Dispatchers.Default) {
+                        val book = _state.value.book.copy(pdfOpenMode = event.mode)
+                        updateBookUseCase(book)
+                        _state.update {
+                            it.copy(
+                                book = book,
+                                showPdfModeDialog = false,
+                                isLoading = event.mode == PdfOpenMode.TEXT,
+                                errorMessage = null,
+                                text = if (event.mode == PdfOpenMode.TEXT) it.text else emptyList()
+                            )
+                        }
+
+                        if (event.mode == PdfOpenMode.TEXT) {
+                            onEvent(ReaderEvent.OnLoadText)
+                        } else {
+                            _effects.emit(ReaderEffect.OnSystemBarsVisibility(show = null))
+                            LibraryScreen.refreshListChannel.trySend(0)
+                            HistoryScreen.refreshListChannel.trySend(0)
+                        }
+                    }
+                }
+
+                is ReaderEvent.OnShowPdfModeDialog -> {
+                    if (_state.value.book.filePath.endsWith(".pdf", true)) {
+                        _state.update { it.copy(showPdfModeDialog = true) }
+                    }
+                }
+
+                is ReaderEvent.OnDismissPdfModeDialog -> {
+                    _state.update { it.copy(showPdfModeDialog = false) }
+                }
+
+                is ReaderEvent.OnPdfPageChanged -> {
+                    if (_state.value.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) return@launch
+
+                    val progress = if (event.pageCount <= 1) 0f
+                    else event.page.toFloat() / (event.pageCount - 1).toFloat()
+                    val book = _state.value.book.copy(
+                        pdfPage = event.page,
+                        pdfProgress = progress
+                    )
+                    _state.update {
+                        it.copy(
+                            book = book,
+                            pdfPageCount = event.pageCount
+                        )
+                    }
+                    updateBookUseCase(book)
+                    LibraryScreen.refreshListChannel.trySend(300)
+                    HistoryScreen.refreshListChannel.trySend(300)
                 }
 
                 is ReaderEvent.OnRestoreScroll -> {
@@ -391,11 +448,24 @@ class ReaderModel @Inject constructor(
 
             _state.update {
                 ReaderState(
-                    book = book
+                    book = book,
+                    pdfUri = if (book.filePath.endsWith(".pdf", true)) {
+                        getFileFromBookUseCase(bookId)?.uri
+                    } else null,
+                    showPdfModeDialog = book.filePath.endsWith(".pdf", true) &&
+                            book.pdfOpenMode == null,
+                    isLoading = !(book.filePath.endsWith(".pdf", true) &&
+                            book.pdfOpenMode == null)
                 )
             }
 
-            onEvent(ReaderEvent.OnLoadText)
+            if (book.pdfOpenMode != null || !book.filePath.endsWith(".pdf", true)) {
+                if (book.pdfOpenMode == PdfOpenMode.TEXT ||
+                    !book.filePath.endsWith(".pdf", true)
+                ) {
+                    onEvent(ReaderEvent.OnLoadText)
+                }
+            }
         }
     }
 

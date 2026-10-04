@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -22,6 +26,7 @@ import ua.acclorite.book_story.core.BottomSheet
 import ua.acclorite.book_story.core.Drawer
 import ua.acclorite.book_story.core.ui.UIText
 import ua.acclorite.book_story.domain.model.library.Book
+import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
@@ -55,6 +60,14 @@ fun ReaderContent(
     currentChapterProgress: Float,
     isLoading: Boolean,
     errorMessage: UIText?,
+    showPdfModeDialog: Boolean,
+    pdfUri: String?,
+    pdfPage: Int,
+    pdfPageCount: Int,
+    selectPdfMode: (ReaderEvent.OnSelectPdfMode) -> Unit,
+    dismissPdfModeDialog: (ReaderEvent.OnDismissPdfModeDialog) -> Unit,
+    showPdfModeDialogAction: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
+    pdfPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit,
     checkpoints: List<Checkpoint>,
     showMenu: Boolean,
     lockMenu: Boolean,
@@ -78,7 +91,6 @@ fun ReaderContent(
     bottomBarPadding: Dp,
     backgroundColor: Color,
     fontColor: Color,
-    images: Boolean,
     imagesCaptions: Boolean,
     imagesCornersRoundness: Dp,
     imagesAlignment: HorizontalAlignment,
@@ -113,13 +125,37 @@ fun ReaderContent(
     navigateToBookInfo: (ReaderEvent.OnNavigateToBookInfo) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit
 ) {
+    if (showPdfModeDialog) {
+        PdfModeDialog(
+            onSelect = { mode ->
+                selectPdfMode(ReaderEvent.OnSelectPdfMode(mode))
+            },
+            onDismiss = {
+                dismissPdfModeDialog(ReaderEvent.OnDismissPdfModeDialog)
+            }
+        )
+    }
+
     ReaderBottomSheet(
         bottomSheet = bottomSheet,
         menuVisibility = menuVisibility,
         dismissBottomSheet = dismissBottomSheet
     )
 
-    if (isLoading || errorMessage == null) {
+    if (book.pdfOpenMode == PdfOpenMode.NATIVE_PDF) {
+        PdfViewerScaffold(
+            book = book,
+            uri = pdfUri,
+            initialPage = pdfPage,
+            pageCount = pdfPageCount,
+            showMenu = showMenu,
+            lockMenu = lockMenu,
+            leave = leave,
+            navigateBack = navigateBack,
+            showPdfModeDialog = showPdfModeDialogAction,
+            onPageChanged = pdfPageChanged
+        )
+    } else if (isLoading || errorMessage == null) {
         ReaderScaffold(
             book = book,
             text = text,
@@ -191,7 +227,10 @@ fun ReaderContent(
             showSettingsBottomSheet = showSettingsBottomSheet,
             showChaptersDrawer = showChaptersDrawer,
             navigateBack = navigateBack,
-            navigateToBookInfo = navigateToBookInfo
+            navigateToBookInfo = navigateToBookInfo,
+            togglePdfMode = {
+                showPdfModeDialogAction(ReaderEvent.OnShowPdfModeDialog)
+            }
         )
     } else {
         ReaderErrorPlaceholder(
@@ -214,5 +253,36 @@ fun ReaderContent(
     ReaderBackHandler(
         leave = leave,
         navigateBack = navigateBack
+    )
+}
+
+@Composable
+private fun PdfModeDialog(
+    onSelect: (PdfOpenMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(ua.acclorite.book_story.R.string.open_pdf_mode_title)) },
+        text = {
+            androidx.compose.foundation.layout.Column {
+                TextButton(
+                    onClick = { onSelect(PdfOpenMode.TEXT) }
+                ) {
+                    Text(stringResource(ua.acclorite.book_story.R.string.open_pdf_as_text))
+                }
+                TextButton(
+                    onClick = { onSelect(PdfOpenMode.NATIVE_PDF) }
+                ) {
+                    Text(stringResource(ua.acclorite.book_story.R.string.open_pdf_as_pages))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(ua.acclorite.book_story.R.string.cancel))
+            }
+        }
     )
 }

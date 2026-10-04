@@ -8,12 +8,26 @@ package ua.acclorite.book_story.presentation.reader
 
 import androidx.compose.runtime.Immutable
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
+import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
 
 @Immutable
 sealed class ReaderEvent {
 
     data object OnLoadText : ReaderEvent()
+
+    data class OnSelectPdfMode(
+        val mode: PdfOpenMode
+    ) : ReaderEvent()
+
+    data object OnShowPdfModeDialog : ReaderEvent()
+
+    data object OnDismissPdfModeDialog : ReaderEvent()
+
+    data class OnPdfPageChanged(
+        val page: Int,
+        val pageCount: Int
+    ) : ReaderEvent()
 
     data object OnRestoreScroll : ReaderEvent()
 

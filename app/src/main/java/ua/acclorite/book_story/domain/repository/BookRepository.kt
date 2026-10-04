@@ -20,6 +20,10 @@ interface BookRepository {
         bookId: Int
     ): Result<Book>
 
+    suspend fun getBookBySourceUri(
+        sourceUri: String
+    ): Result<Book>
+
     suspend fun getText(
         bookId: Int
     ): Result<List<ReaderText>>

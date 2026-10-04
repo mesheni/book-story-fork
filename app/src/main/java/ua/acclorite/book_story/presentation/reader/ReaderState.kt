@@ -27,6 +27,9 @@ data class ReaderState(
 
     val errorMessage: UIText? = null,
     val isLoading: Boolean = true,
+    val showPdfModeDialog: Boolean = false,
+    val pdfPageCount: Int = 0,
+    val pdfUri: String? = null,
 
     val showMenu: Boolean = false,
     val checkpoints: List<Checkpoint> = emptyList(),
