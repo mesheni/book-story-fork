@@ -43,6 +43,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.parcelize.Parcelize
 import ua.acclorite.book_story.core.helpers.calculateProgress
 import ua.acclorite.book_story.presentation.navigator.Screen
@@ -76,6 +79,24 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
         val settingsState = settingsModel.state.collectAsStateWithLifecycle()
 
         val activity = LocalActivity.current
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner, screenModel) {
+            val observer = LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_START -> screenModel.setReadingForeground(true)
+                    Lifecycle.Event.ON_STOP -> screenModel.setReadingForeground(false)
+                    else -> Unit
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                screenModel.setReadingForeground(true)
+            }
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+                screenModel.onReaderDisposed()
+            }
+        }
         val density = LocalDensity.current
         val listState = rememberSaveable(
             state.value.listState,
@@ -414,6 +435,28 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
             currentChapterProgress = state.value.currentChapterProgress,
             isLoading = state.value.isLoading,
             errorMessage = state.value.errorMessage,
+            showPdfModeDialog = state.value.showPdfModeDialog,
+            pdfUri = state.value.pdfUri,
+            pdfPage = state.value.book.pdfPage,
+            pdfNavigationRequest = state.value.pdfNavigationRequest,
+            pdfPageCount = state.value.pdfPageCount,
+            isPdfViewerLoading = state.value.isPdfViewerLoading,
+            pdfViewerError = state.value.pdfViewerError,
+            showPdfSearch = state.value.showPdfSearch,
+            pdfSearchQuery = state.value.pdfSearchQuery,
+            pdfSearchResults = state.value.pdfSearchResults,
+            isPdfSearching = state.value.isPdfSearching,
+            pdfSearchError = state.value.pdfSearchError,
+            selectPdfMode = screenModel::onEvent,
+            dismissPdfModeDialog = screenModel::onEvent,
+            showPdfModeDialogAction = screenModel::onEvent,
+            pdfPageChanged = screenModel::onEvent,
+            pdfViewerInitialized = screenModel::onEvent,
+            showPdfSearchAction = screenModel::onEvent,
+            pdfMenuVisibility = screenModel::onEvent,
+            dismissPdfSearch = screenModel::onEvent,
+            pdfSearchQueryChanged = screenModel::onEvent,
+            selectPdfSearchResult = screenModel::onEvent,
             checkpoints = state.value.checkpoints,
             showMenu = state.value.showMenu,
             lockMenu = state.value.lockMenu,

@@ -13,6 +13,7 @@
     <string name="library_screen">Библиотека</string>
     <string name="history_screen">История</string>
     <string name="browse_screen">Обзор</string>
+    <string name="back">Назад</string>
     <string name="settings_screen">Настройки</string>
     <string name="about_screen">О приложении</string>
 
@@ -116,6 +117,8 @@
 <!-- Категории настроек -->
 <string name="general_settings">Общие</string>
 <string name="general_settings_desc">Язык приложения</string>
+<string name="reading_statistics">Статистика чтения</string>
+<string name="reading_statistics_desc">Время, сеансы, книги</string>
 <string name="appearance_settings">Внешний вид</string>
 <string name="appearance_settings_desc">Тема, цвета</string>
 <string name="reader_settings">Читалка</string>
@@ -158,6 +161,22 @@
 <string name="app_theme_option">Тема приложения</string>
 <string name="double_press_exit_option">Двойное нажатие для выхода</string>
 <string name="double_press_exit_option_desc">Нажмите «Назад» дважды, чтобы выйти из приложения</string>
+<string name="reading_statistics_collect">Собирать статистику чтения</string>
+<string name="reading_statistics_collect_desc">Хранить данные о чтении только на этом устройстве</string>
+<string name="statistics_today">Сегодня</string>
+<string name="statistics_week">Последние 7 дней</string>
+<string name="statistics_books">Книги</string>
+<string name="statistics_empty">Данных о чтении пока нет</string>
+<string name="statistics_books_empty">Статистика по книгам пока пуста</string>
+<string name="statistics_sessions">Сеансов: %1$d</string>
+<string name="statistics_streak">Серия чтения: %1$d дн.</string>
+<string name="statistics_progress">Прогресс: %1$d%%</string>
+<string name="statistics_duration_hours_minutes">%1$d ч %2$d мин</string>
+<string name="statistics_duration_minutes">%1$d мин</string>
+<string name="statistics_export">Экспорт CSV</string>
+<string name="statistics_export_error">Не удалось экспортировать статистику</string>
+<string name="statistics_clear">Очистить статистику</string>
+<string name="statistics_clear_confirm">Будет удалена только статистика чтения. История открытий и библиотека не изменятся.</string>
 
 <!-- Читалка -->
 <string name="font_family_option">Семейство шрифтов</string>
@@ -397,6 +416,13 @@
     <string name="cover_image_not_found_content_desc">Обложка не найдена</string>
     <string name="error_content_desc">Ошибка</string>
     <string name="search_content_desc">Поиск</string>
+    <string name="search_pdf">Поиск по PDF</string>
+    <string name="search_pdf_hint">Найти в документе</string>
+    <string name="pdf_search_no_results">Совпадений не найдено</string>
+    <string name="pdf_search_error">Не удалось выполнить поиск по PDF</string>
+    <string name="pdf_search_extracting">Подготовка документа к поиску…</string>
+    <string name="pdf_search_page_number">Страница %1$d</string>
+    <string name="pdf_viewer_error">Не удалось открыть этот PDF</string>
     <string name="clear_selected_items_content_desc">Очистить выбранные элементы</string>
     <string name="add_files_content_desc">Добавить файлы</string>
     <string name="select_all_files_content_desc">Выбрать все файлы</string>

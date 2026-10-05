@@ -34,6 +34,7 @@ import ua.acclorite.book_story.domain.use_case.color_preset.UpdateColorPresetUse
 import ua.acclorite.book_story.domain.use_case.permission.GrantPersistableUriPermissionUseCase
 import ua.acclorite.book_story.domain.use_case.permission.ReleasePersistableUriPermissionUseCase
 import ua.acclorite.book_story.domain.use_case.settings.UpdateLanguageUseCase
+import ua.acclorite.book_story.domain.service.ReadingSessionTracker
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
@@ -52,7 +53,8 @@ class SettingsModel @Inject constructor(
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val updateCategoryUseCase: UpdateCategoryUseCase,
     private val updateCategoriesOrderUseCase: UpdateCategoriesOrderUseCase,
-    private val deleteCategoryUseCase: DeleteCategoryUseCase
+    private val deleteCategoryUseCase: DeleteCategoryUseCase,
+    private val readingSessionTracker: ReadingSessionTracker
 ) : ViewModel() {
 
     private val mutex = Mutex()
@@ -101,6 +103,10 @@ class SettingsModel @Inject constructor(
     fun onEvent(event: SettingsEvent) {
         viewModelScope.launch {
             when (event) {
+                is SettingsEvent.OnUpdateReadingStatistics -> {
+                    readingSessionTracker.setEnabled(event.enabled)
+                }
+
                 is SettingsEvent.OnUpdateLanguage -> {
                     updateLanguageUseCase(event.language)
                 }

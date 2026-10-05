@@ -14,6 +14,7 @@ import ua.acclorite.book_story.core.ui.UIText
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
+import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
 
 @Immutable
@@ -27,6 +28,17 @@ data class ReaderState(
 
     val errorMessage: UIText? = null,
     val isLoading: Boolean = true,
+    val showPdfModeDialog: Boolean = false,
+    val pdfPageCount: Int = 0,
+    val pdfUri: String? = null,
+    val isPdfViewerLoading: Boolean = false,
+    val pdfViewerError: String? = null,
+    val showPdfSearch: Boolean = false,
+    val pdfSearchQuery: String = "",
+    val pdfSearchResults: List<PdfSearchResult> = emptyList(),
+    val isPdfSearching: Boolean = false,
+    val pdfSearchError: String? = null,
+    val pdfNavigationRequest: Int = 0,
 
     val showMenu: Boolean = false,
     val checkpoints: List<Checkpoint> = emptyList(),

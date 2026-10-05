@@ -112,7 +112,8 @@ fun ReaderScaffold(
     showSettingsBottomSheet: (ReaderEvent.OnShowSettingsBottomSheet) -> Unit,
     showChaptersDrawer: (ReaderEvent.OnShowChaptersDrawer) -> Unit,
     navigateToBookInfo: (ReaderEvent.OnNavigateToBookInfo) -> Unit,
-    navigateBack: (ReaderEvent.OnNavigateBack) -> Unit
+    navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
+    togglePdfMode: () -> Unit
 ) {
     Scaffold(
         Modifier
@@ -137,7 +138,8 @@ fun ReaderScaffold(
                     showSettingsBottomSheet = showSettingsBottomSheet,
                     showChaptersDrawer = showChaptersDrawer,
                     navigateBack = navigateBack,
-                    navigateToBookInfo = navigateToBookInfo
+                    navigateToBookInfo = navigateToBookInfo,
+                    togglePdfMode = togglePdfMode
                 )
             }
         },

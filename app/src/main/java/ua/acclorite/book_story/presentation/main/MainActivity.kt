@@ -10,6 +10,8 @@ package ua.acclorite.book_story.presentation.main
 
 import android.annotation.SuppressLint
 import android.database.CursorWindow
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +24,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import ua.acclorite.book_story.R
 import ua.acclorite.book_story.data.settings.SettingsManager
 import ua.acclorite.book_story.presentation.browse.BrowseModel
@@ -38,6 +42,7 @@ import ua.acclorite.book_story.ui.common.components.navigation_bar.NavigationBar
 import ua.acclorite.book_story.ui.common.components.navigation_rail.NavigationRail
 import ua.acclorite.book_story.ui.common.helpers.ProvideSettings
 import ua.acclorite.book_story.ui.main.MainActivityKeyboardManager
+import ua.acclorite.book_story.ui.main.ExternalPdfEffects
 import ua.acclorite.book_story.ui.navigator.Navigator
 import ua.acclorite.book_story.ui.navigator.NavigatorTabs
 import ua.acclorite.book_story.ui.settings.SettingsEffects
@@ -51,9 +56,15 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private val _externalPdfUris = Channel<Uri>(Channel.BUFFERED)
+        val externalPdfUris = _externalPdfUris.receiveAsFlow()
+    }
+
     @Inject
     lateinit var settings: SettingsManager
     private val settingsModel: SettingsModel by viewModels()
+    private var pendingPdfUri: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen().setKeepOnScreenCondition {
@@ -61,6 +72,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         super.onCreate(savedInstanceState)
+        pendingPdfUri = extractPdfUri(intent)
+        pendingPdfUri?.let { _externalPdfUris.trySend(it) }
+        pendingPdfUri = null
 
         // Bigger Cursor size for Room
         try {
@@ -80,6 +94,7 @@ class MainActivity : AppCompatActivity() {
             val libraryModel = hiltViewModel<LibraryModel>()
             val historyModel = hiltViewModel<HistoryModel>()
             val browseModel = hiltViewModel<BrowseModel>()
+            val externalPdfModel = hiltViewModel<ExternalPdfModel>()
 
             SettingsEffects(
                 effects = settingsModel.effects
@@ -173,10 +188,37 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                         }
+                        ExternalPdfEffects(
+                            effects = externalPdfModel.effects
+                        )
                     }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingPdfUri = extractPdfUri(intent)
+        pendingPdfUri?.let { _externalPdfUris.trySend(it) }
+        pendingPdfUri = null
+    }
+
+    private fun extractPdfUri(intent: Intent?): Uri? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        val uri = intent.data ?: return null
+        if (uri.scheme != "content") return null
+        if (intent.type != null && intent.type != "application/pdf") return null
+
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                intent.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            )
+        }
+        return uri
     }
 
     override fun onDestroy() {

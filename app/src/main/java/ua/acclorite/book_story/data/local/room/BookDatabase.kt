@@ -19,6 +19,8 @@ import ua.acclorite.book_story.data.local.dto.BookEntity
 import ua.acclorite.book_story.data.local.dto.CategoryEntity
 import ua.acclorite.book_story.data.local.dto.ColorPresetEntity
 import ua.acclorite.book_story.data.local.dto.HistoryEntity
+import ua.acclorite.book_story.data.local.dto.PdfPageTextEntity
+import ua.acclorite.book_story.data.local.dto.ReadingSessionEntity
 import java.io.File
 
 @Database(
@@ -26,9 +28,11 @@ import java.io.File
         BookEntity::class,
         HistoryEntity::class,
         ColorPresetEntity::class,
-        CategoryEntity::class
+        CategoryEntity::class,
+        ReadingSessionEntity::class,
+        PdfPageTextEntity::class
     ],
-    version = 16,
+    version = 19,
     autoMigrations = [
         AutoMigration(1, 2),
         AutoMigration(2, 3),
@@ -53,6 +57,8 @@ abstract class BookDatabase : RoomDatabase() {
     abstract val historyDao: HistoryDao
     abstract val colorPresetDao: ColorPresetDao
     abstract val categoryDao: CategoryDao
+    abstract val readingSessionDao: ReadingSessionDao
+    abstract val pdfPageTextDao: PdfPageTextDao
 }
 
 @Suppress("ClassName")
@@ -240,6 +246,56 @@ object DatabaseHelper {
             database.execSQL("DROP TABLE CategoryEntity")
             database.execSQL("DROP TABLE CategorySortEntity")
             database.execSQL("ALTER TABLE CategoryEntity_new RENAME TO CategoryEntity")
+        }
+    }
+
+    val MANUAL_MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN sourceUri TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfOpenMode TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfPage INTEGER NOT NULL DEFAULT 0")
+            database.execSQL("ALTER TABLE BookEntity ADD COLUMN pdfProgress REAL NOT NULL DEFAULT 0.0")
+        }
+    }
+
+    val MANUAL_MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `ReadingSessionEntity` (
+                    `sessionId` TEXT NOT NULL,
+                    `dayEpoch` INTEGER NOT NULL,
+                    `bookId` INTEGER,
+                    `bookTitle` TEXT NOT NULL,
+                    `startedAt` INTEGER NOT NULL,
+                    `durationMillis` INTEGER NOT NULL,
+                    `format` TEXT NOT NULL,
+                    `startProgress` REAL NOT NULL,
+                    `endProgress` REAL NOT NULL,
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_ReadingSessionEntity_sessionId_dayEpoch` " +
+                        "ON `ReadingSessionEntity` (`sessionId`, `dayEpoch`)"
+            )
+        }
+    }
+
+    val MANUAL_MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `PdfPageTextEntity` (
+                    `bookId` INTEGER NOT NULL,
+                    `pageIndex` INTEGER NOT NULL,
+                    `sourceSignature` TEXT NOT NULL,
+                    `text` TEXT NOT NULL,
+                    PRIMARY KEY(`bookId`, `pageIndex`)
+                )
+                """.trimIndent()
+            )
         }
     }
 }
