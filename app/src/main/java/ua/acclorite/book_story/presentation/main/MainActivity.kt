@@ -158,6 +158,10 @@ class MainActivity : AppCompatActivity() {
                             },
                             backHandlerEnabled = { it != StartScreen }
                         ) { screen ->
+                            ExternalPdfEffects(
+                                effects = externalPdfModel.effects
+                            )
+
                             when (screen) {
                                 LibraryScreen, HistoryScreen, BrowseScreen -> {
                                     NavigatorTabs(
@@ -188,9 +192,6 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                        ExternalPdfEffects(
-                            effects = externalPdfModel.effects
-                        )
                     }
                 }
             }
