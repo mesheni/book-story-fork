@@ -49,9 +49,6 @@ object SettingsScreen : Screen, Parcelable {
             navigateToStatistics = {
                 navigator.push(ua.acclorite.book_story.presentation.statistics.StatisticsScreen)
             },
-            navigateToStatistics = {
-                navigator.push(ua.acclorite.book_story.presentation.statistics.StatisticsScreen)
-            },
             navigateToStart = {
                 settings.showStartScreen.update(true)
                 navigator.push(StartScreen, saveInBackStack = false)

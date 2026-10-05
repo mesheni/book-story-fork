@@ -106,6 +106,7 @@ fun ReaderContent(
     bottomBarPadding: Dp,
     backgroundColor: Color,
     fontColor: Color,
+    images: Boolean,
     imagesCaptions: Boolean,
     imagesCornersRoundness: Dp,
     imagesAlignment: HorizontalAlignment,

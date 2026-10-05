@@ -245,7 +245,6 @@ class ReadingSessionTracker @Inject constructor(
         lastActivityElapsed = 0L
         lastCheckpointElapsed = 0L
         lastWallTime = 0L
-        intervalWallOffset = 0L
         dayDurations.clear()
         dayStarts.clear()
     }

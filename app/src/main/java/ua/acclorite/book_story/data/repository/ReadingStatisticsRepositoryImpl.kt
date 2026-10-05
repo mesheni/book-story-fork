@@ -37,12 +37,12 @@ class ReadingStatisticsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getAll(): List<ReadingSession> = withContext(Dispatchers.IO) {
-        database.readingSessionDao.getAll().map(ReadingSessionEntity::toModel)
+        database.readingSessionDao.getAll().map { it.toModel() }
     }
 
     override suspend fun getBetween(fromDay: Long, toDay: Long): List<ReadingSession> =
         withContext(Dispatchers.IO) {
-            database.readingSessionDao.getBetween(fromDay, toDay).map(ReadingSessionEntity::toModel)
+            database.readingSessionDao.getBetween(fromDay, toDay).map { it.toModel() }
         }
 
     override suspend fun clear() = withContext(Dispatchers.IO) {
