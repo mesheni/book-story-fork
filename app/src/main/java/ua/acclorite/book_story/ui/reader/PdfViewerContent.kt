@@ -39,8 +39,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
 import ua.acclorite.book_story.R
@@ -57,17 +63,26 @@ fun PdfViewerContent(
     onToggleMenu: () -> Unit
 ) {
     val context = LocalContext.current
-    var rendererState by remember(uriString) { mutableStateOf<PdfRenderer?>(null) }
-    var descriptorState by remember(uriString) { mutableStateOf<ParcelFileDescriptor?>(null) }
+    val rendererState = remember { mutableStateOf<PdfRenderer?>(null) }
+    val descriptorState = remember { mutableStateOf<ParcelFileDescriptor?>(null) }
     var pageCount by remember(uriString) { mutableStateOf(0) }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialPage)
+    val renderLock = remember { Mutex() }
+    val closeScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
 
     DisposableEffect(uriString) {
         onDispose {
-            rendererState?.close()
-            descriptorState?.close()
-            rendererState = null
-            descriptorState = null
+            val renderer = rendererState.value
+            val descriptor = descriptorState.value
+            rendererState.value = null
+            descriptorState.value = null
+            // PdfRenderer single-threaded: close only after in-flight renders release the lock
+            closeScope.launch {
+                renderLock.withLock {
+                    runCatching { renderer?.close() }
+                    runCatching { descriptor?.close() }
+                }
+            }
         }
     }
 
@@ -79,8 +94,8 @@ fun PdfViewerContent(
                     ?: error("Unable to open PDF")
                 try {
                     val renderer = PdfRenderer(descriptor)
-                    descriptorState = descriptor
-                    rendererState = renderer
+                    rendererState.value = renderer
+                    descriptorState.value = descriptor
                     pageCount = renderer.pageCount
                     onViewerInitialized(ReaderEvent.OnPdfViewerInitialized(renderer.pageCount))
                 } catch (error: Exception) {
@@ -125,7 +140,8 @@ fun PdfViewerContent(
         return
     }
 
-    if (isLoading || rendererState == null || pageCount == 0) {
+    val activeRenderer = rendererState.value
+    if (isLoading || pageCount == 0 || activeRenderer == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
@@ -144,8 +160,9 @@ fun PdfViewerContent(
     ) {
         items(pageCount) { pageIndex ->
             PdfPage(
-                renderer = rendererState!!,
-                pageIndex = pageIndex
+                renderer = activeRenderer,
+                pageIndex = pageIndex,
+                renderLock = renderLock
             )
         }
     }
@@ -154,7 +171,8 @@ fun PdfViewerContent(
 @Composable
 private fun PdfPage(
     renderer: PdfRenderer,
-    pageIndex: Int
+    pageIndex: Int,
+    renderLock: Mutex
 ) {
     var bitmap by remember(renderer, pageIndex) { mutableStateOf<Bitmap?>(null) }
 
@@ -166,15 +184,18 @@ private fun PdfPage(
     }
 
     LaunchedEffect(renderer, pageIndex) {
-        val renderedBitmap = withContext(Dispatchers.IO) {
-            renderer.openPage(pageIndex).use { page ->
-                Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888).also {
-                    page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        renderLock.withLock {
+            val renderedBitmap = withContext(Dispatchers.IO) {
+                renderer.openPage(pageIndex).use { page ->
+                    Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888).also {
+                        page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    }
                 }
             }
+            ensureActive()
+            bitmap?.recycle()
+            bitmap = renderedBitmap
         }
-        bitmap?.recycle()
-        bitmap = renderedBitmap
     }
 
     bitmap?.let { renderedPage ->

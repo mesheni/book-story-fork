@@ -47,6 +47,7 @@ import ua.acclorite.book_story.presentation.reader.model.Checkpoint
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
+import java.util.concurrent.atomic.AtomicInteger
 
 @HiltViewModel
 class ReaderModel @Inject constructor(
@@ -71,7 +72,8 @@ class ReaderModel @Inject constructor(
 
     private var scrollJob: Job? = null
     private var pdfSearchJob: Job? = null
-    private var pdfSearchGeneration = 0
+    private var pdfPageSaveJob: Job? = null
+    private val pdfSearchGeneration = AtomicInteger(0)
     private val eventStack = mutableListOf<Job>()
 
     fun onEvent(event: ReaderEvent) {
@@ -163,13 +165,11 @@ class ReaderModel @Inject constructor(
                 is ReaderEvent.OnPdfPageChanged -> {
                     if (_state.value.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) return@launch
 
-                    if (_state.value.pdfPageCount == 0) {
-                        readingSessionTracker.startReader(
-                            book = _state.value.book,
-                            format = "PDF",
-                            enabled = settingsManager.readingStatisticsEnabled.lastValue
-                        )
-                    }
+                    readingSessionTracker.startReader(
+                        book = _state.value.book,
+                        format = "PDF",
+                        enabled = settingsManager.readingStatisticsEnabled.lastValue
+                    )
 
                     val progress = if (event.pageCount <= 1) 0f
                     else event.page.toFloat() / (event.pageCount - 1).toFloat()
@@ -184,9 +184,14 @@ class ReaderModel @Inject constructor(
                         )
                     }
                     readingSessionTracker.activity(progress)
-                    updateBookUseCase(book)
-                    LibraryScreen.refreshListChannel.trySend(300)
-                    HistoryScreen.refreshListChannel.trySend(300)
+
+                    pdfPageSaveJob?.cancel()
+                    pdfPageSaveJob = viewModelScope.launch {
+                        delay(300)
+                        updateBookUseCase(book)
+                        LibraryScreen.refreshListChannel.trySend(300)
+                        HistoryScreen.refreshListChannel.trySend(300)
+                    }
                 }
 
                 is ReaderEvent.OnPdfViewerInitialized -> {
@@ -212,7 +217,7 @@ class ReaderModel @Inject constructor(
                 }
 
                 is ReaderEvent.OnDismissPdfSearch -> {
-                    pdfSearchGeneration++
+                    pdfSearchGeneration.incrementAndGet()
                     pdfSearchJob?.cancel()
                     _state.update {
                         it.copy(
@@ -224,8 +229,7 @@ class ReaderModel @Inject constructor(
                 }
 
                 is ReaderEvent.OnPdfSearchQueryChanged -> {
-                    pdfSearchGeneration++
-                    val generation = pdfSearchGeneration
+                    val generation = pdfSearchGeneration.incrementAndGet()
                     val query = event.query
                     val bookId = _state.value.book.id
                     _state.update {
@@ -242,7 +246,7 @@ class ReaderModel @Inject constructor(
                             delay(250)
                             searchPdfPagesUseCase(bookId, query)
                                 .onSuccess { results ->
-                                    if (generation != pdfSearchGeneration) return@onSuccess
+                                    if (generation != pdfSearchGeneration.get()) return@onSuccess
                                     _state.update {
                                         it.copy(
                                             pdfSearchResults = results,
@@ -251,7 +255,7 @@ class ReaderModel @Inject constructor(
                                     }
                                 }
                                 .onFailure { error ->
-                                    if (generation != pdfSearchGeneration) return@onFailure
+                                    if (generation != pdfSearchGeneration.get()) return@onFailure
                                     _state.update {
                                         it.copy(
                                             isPdfSearching = false,
@@ -264,7 +268,7 @@ class ReaderModel @Inject constructor(
                 }
 
                 is ReaderEvent.OnSelectPdfSearchResult -> {
-                    pdfSearchGeneration++
+                    pdfSearchGeneration.incrementAndGet()
                     pdfSearchJob?.cancel()
                     _state.update {
                         it.copy(
@@ -436,6 +440,10 @@ class ReaderModel @Inject constructor(
 
                 is ReaderEvent.OnLeave -> {
                     readingSessionTracker.stopReader()
+                    pdfPageSaveJob?.cancel()
+                    if (_state.value.book.pdfOpenMode == PdfOpenMode.NATIVE_PDF) {
+                        updateBookUseCase(_state.value.book)
+                    }
                     _state.update {
                         it.copy(
                             lockMenu = true
@@ -446,7 +454,7 @@ class ReaderModel @Inject constructor(
                         !_state.value.isLoading &&
                         _state.value.listState.layoutInfo.totalItemsCount > 0 &&
                         _state.value.text.isNotEmpty() &&
-                        _state.value.errorMessage != null
+                        _state.value.errorMessage == null
                     ) {
                         _state.update {
                             it.copy(

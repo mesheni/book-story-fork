@@ -25,11 +25,11 @@ interface PdfPageTextDao {
     suspend fun deletePagesForBook(bookId: Int)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPage(page: PdfPageTextEntity)
+    suspend fun insertPages(pages: List<PdfPageTextEntity>)
 
     @Transaction
     suspend fun replacePagesForBook(bookId: Int, pages: List<PdfPageTextEntity>) {
         deletePagesForBook(bookId)
-        pages.forEach { insertPage(it) }
+        insertPages(pages)
     }
 }

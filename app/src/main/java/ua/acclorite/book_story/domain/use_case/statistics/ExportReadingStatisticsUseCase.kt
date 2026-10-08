@@ -34,9 +34,16 @@ class ExportReadingStatisticsUseCase @Inject constructor(
                     session.endProgress.toString()
                 )
                 appendLine(values.joinToString(",") { value ->
-                    "\"${value.replace("\"", "\"\"")}\""
+                    "\"${value.csvSafe().replace("\"", "\"\"")}\""
                 })
             }
         }
     }
+
+    /**
+     * Neutralizes CSV formula injection: spreadsheet apps execute
+     * quoted cells starting with =, +, - or @ as formulas.
+     */
+    private fun String.csvSafe(): String =
+        if (isNotEmpty() && first() in "=+-@\t\r") "'$this" else this
 }

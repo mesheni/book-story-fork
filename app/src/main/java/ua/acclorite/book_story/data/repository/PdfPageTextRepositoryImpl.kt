@@ -74,7 +74,9 @@ class PdfPageTextRepositoryImpl @Inject constructor(
                         cachedPages.isNotEmpty() &&
                         dao.countPages(bookId, sourceSignature) == document.numberOfPages
                     ) {
-                        return@withContext cachedPages.map { PdfPageText(it.pageIndex, it.text) }
+                        val pages = cachedPages.map { PdfPageText(it.pageIndex, it.text) }
+                        memoryCache[bookId] = metadataSignature to pages
+                        return@withContext pages
                     }
 
                     for (pageIndex in 0 until document.numberOfPages) {
