@@ -23,7 +23,7 @@ class TxtTextParser @Inject constructor(
     private val markdownParser: MarkdownParser
 ) : TextParser {
 
-    override suspend fun parse(cachedFile: CachedFile): List<ReaderText> {
+    override suspend fun parse(cachedFile: CachedFile, onProgress: (Float) -> Unit): List<ReaderText> {
         logI(TAG, "Started TXT parsing: ${cachedFile.name}.")
 
         return try {

@@ -12,6 +12,7 @@ import ua.acclorite.book_story.core.BottomSheet
 import ua.acclorite.book_story.core.Drawer
 import ua.acclorite.book_story.core.ui.UIText
 import ua.acclorite.book_story.domain.model.library.Book
+import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
@@ -28,6 +29,7 @@ data class ReaderState(
 
     val errorMessage: UIText? = null,
     val isLoading: Boolean = true,
+    val textExtractionProgress: Float? = null,
     val showPdfModeDialog: Boolean = false,
     val pdfPageCount: Int = 0,
     val pdfUri: String? = null,
@@ -37,12 +39,16 @@ data class ReaderState(
     val pdfSearchQuery: String = "",
     val pdfSearchResults: List<PdfSearchResult> = emptyList(),
     val isPdfSearching: Boolean = false,
+    val pdfSearchProgress: Float? = null,
     val pdfSearchError: String? = null,
     val pdfNavigationRequest: Int = 0,
 
     val showMenu: Boolean = false,
     val checkpoints: List<Checkpoint> = emptyList(),
     val lockMenu: Boolean = false,
+
+    val notes: List<Note> = emptyList(),
+    val editingNote: Note? = null,
 
     val bottomSheet: BottomSheet? = null,
     val drawer: Drawer? = null

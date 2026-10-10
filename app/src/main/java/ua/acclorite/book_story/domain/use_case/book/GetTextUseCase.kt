@@ -18,11 +18,11 @@ class GetTextUseCase @Inject constructor(
     private val bookRepository: BookRepository
 ) {
 
-    suspend operator fun invoke(bookId: Int): List<ReaderText> {
+    suspend operator fun invoke(bookId: Int, onProgress: (Float) -> Unit = {}): List<ReaderText> {
         logI(TAG, "Getting text from: [$bookId].")
         if (bookId == -1) return emptyList()
 
-        bookRepository.getText(bookId).mapCatching { readerText ->
+        bookRepository.getText(bookId, onProgress).mapCatching { readerText ->
             if (
                 readerText.filterIsInstance<ReaderText.Text>().isEmpty() ||
                 readerText.filterIsInstance<ReaderText.Chapter>().isEmpty()

@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +32,13 @@ import ua.acclorite.book_story.presentation.reader.model.ReaderTextAlignment
 import ua.acclorite.book_story.ui.common.components.common.StyledText
 import ua.acclorite.book_story.ui.common.helpers.noRippleClickable
 import ua.acclorite.book_story.ui.reader.model.FontWithName
+
+/** A note highlight range inside one paragraph. */
+data class NoteHighlight(
+    val start: Int,
+    val end: Int,
+    val color: Color
+)
 
 @Composable
 fun LazyItemScope.ReaderLayoutTextParagraph(
@@ -48,10 +58,28 @@ fun LazyItemScope.ReaderLayoutTextParagraph(
     doubleClickTranslation: Boolean,
     highlightedReading: Boolean,
     highlightedReadingThickness: FontWeight,
+    noteHighlights: List<NoteHighlight>,
     toolbarHidden: Boolean,
     openTranslator: (ReaderEvent.OnOpenTranslator) -> Unit,
     menuVisibility: (ReaderEvent.OnMenuVisibility) -> Unit
 ) {
+    val styledLine = remember(paragraph.line, noteHighlights) {
+        if (noteHighlights.isEmpty()) {
+            paragraph.line
+        } else {
+            AnnotatedString.Builder().apply {
+                append(paragraph.line)
+                noteHighlights.forEach { highlight ->
+                    addStyle(
+                        SpanStyle(background = highlight.color.copy(alpha = 0.4f)),
+                        highlight.start.coerceIn(0, paragraph.line.length),
+                        highlight.end.coerceIn(0, paragraph.line.length)
+                    )
+                }
+            }.toAnnotatedString()
+        }
+    }
+
     Column(
         modifier = Modifier
             .animateItem(fadeInSpec = null, fadeOutSpec = null)
@@ -61,7 +89,7 @@ fun LazyItemScope.ReaderLayoutTextParagraph(
         horizontalAlignment = horizontalAlignment
     ) {
         StyledText(
-            text = paragraph.line,
+            text = styledLine,
             modifier = Modifier.then(
                 if (doubleClickTranslation && toolbarHidden) {
                     Modifier.noRippleClickable(

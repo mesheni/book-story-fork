@@ -7,8 +7,10 @@
 package ua.acclorite.book_story.presentation.reader
 
 import androidx.compose.runtime.Immutable
-import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.domain.model.library.PdfOpenMode
+import ua.acclorite.book_story.domain.model.note.Note
+import ua.acclorite.book_story.domain.model.note.NoteRect
+import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
 
 @Immutable
@@ -87,6 +89,43 @@ sealed class ReaderEvent {
 
     data class OnOpenDictionary(
         val textToDefine: String
+    ) : ReaderEvent()
+
+    /**
+     * The user picked "add to notes" on a text selection; the anchor
+     * is resolved against the loaded text from the visible position.
+     */
+    data class OnAddTextNote(
+        val selectedText: String
+    ) : ReaderEvent()
+
+    /** The user picked "add to notes" on a selection in the native PDF viewer. */
+    data class OnAddPdfNote(
+        val pageIndex: Int,
+        val selectedText: String,
+        val rects: List<NoteRect>
+    ) : ReaderEvent()
+
+    /** Insert (id == 0) or update an existing note. */
+    data class OnSaveNote(
+        val note: Note
+    ) : ReaderEvent()
+
+    data class OnDeleteNote(
+        val noteId: Int
+    ) : ReaderEvent()
+
+    data class OnEditNote(
+        val note: Note
+    ) : ReaderEvent()
+
+    data object OnDismissNoteEditor : ReaderEvent()
+
+    data object OnShowNotesBottomSheet : ReaderEvent()
+
+    /** Jump to the note location and close the notes sheet. */
+    data class OnSelectNote(
+        val note: Note
     ) : ReaderEvent()
 
     data object OnShowSettingsBottomSheet : ReaderEvent()

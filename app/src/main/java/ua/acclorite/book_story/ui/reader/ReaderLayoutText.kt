@@ -45,6 +45,7 @@ fun LazyItemScope.ReaderLayoutText(
     doubleClickTranslation: Boolean,
     highlightedReading: Boolean,
     highlightedReadingThickness: FontWeight,
+    noteHighlights: List<NoteHighlight>,
     toolbarHidden: Boolean,
     openTranslator: (ReaderEvent.OnOpenTranslator) -> Unit,
     menuVisibility: (ReaderEvent.OnMenuVisibility) -> Unit
@@ -97,6 +98,7 @@ fun LazyItemScope.ReaderLayoutText(
                 doubleClickTranslation = doubleClickTranslation,
                 highlightedReading = highlightedReading,
                 highlightedReadingThickness = highlightedReadingThickness,
+                noteHighlights = noteHighlights,
                 toolbarHidden = toolbarHidden,
                 openTranslator = openTranslator,
                 menuVisibility = menuVisibility

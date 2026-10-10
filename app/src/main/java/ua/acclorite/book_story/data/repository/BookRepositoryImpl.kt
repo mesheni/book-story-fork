@@ -56,11 +56,11 @@ class BookRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getText(bookId: Int): Result<List<ReaderText>> {
+    override suspend fun getText(bookId: Int, onProgress: (Float) -> Unit): Result<List<ReaderText>> {
         return withContext(Dispatchers.IO) {
             getBook(bookId)
                 .mapCatching { fileProvider.getFileFromBook(it).getOrThrow() }
-                .mapCatching { textParser.parse(it) }
+                .mapCatching { textParser.parse(it, onProgress) }
         }
     }
 
@@ -91,6 +91,7 @@ class BookRepositoryImpl @Inject constructor(
             database.bookDao.deleteBook(bookMapper.toBookEntity(book)).also {
                 if (it == 0) throw Exception("Could not delete book in database.")
                 database.pdfPageTextDao.deletePagesForBook(book.id)
+                database.noteDao.deleteNotesForBook(book.id)
             }
         }
     }

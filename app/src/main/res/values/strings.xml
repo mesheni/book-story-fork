@@ -108,6 +108,8 @@
     <string name="pdf_search_no_results">No matches found</string>
     <string name="pdf_search_error">Could not search this PDF</string>
     <string name="pdf_search_extracting">Preparing document for search…</string>
+    <string name="pdf_search_progress">Preparing document for search… %1$d%%</string>
+    <string name="pdf_text_progress">Processing document… %1$d%%</string>
     <string name="pdf_search_page_number">Page %1$d</string>
     <string name="pdf_viewer_error">Could not open this PDF</string>
     <string name="change_path">Change path</string>
@@ -536,5 +538,13 @@
     <string name="collapse_content_desc">Collapse</string>
     <string name="remove_content_desc">Remove</string>
     <string name="note_content_desc">Note</string>
+    <string name="add_to_notes">Add to notes</string>
+    <string name="notes">Notes</string>
+    <string name="note_title">Note</string>
+    <string name="notes_empty">No notes yet</string>
+    <string name="note_comment_hint">Comment (optional)</string>
+    <string name="note_save">Save</string>
+    <string name="note_pdf_page">Page %1$d</string>
+    <string name="pdf_no_text_layer">This page has no selectable text</string>
 
 </resources>

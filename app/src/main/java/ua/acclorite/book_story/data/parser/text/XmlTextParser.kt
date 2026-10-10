@@ -22,7 +22,7 @@ class XmlTextParser @Inject constructor(
     private val documentParser: DocumentParser
 ) : TextParser {
 
-    override suspend fun parse(cachedFile: CachedFile): List<ReaderText> {
+    override suspend fun parse(cachedFile: CachedFile, onProgress: (Float) -> Unit): List<ReaderText> {
         logI(TAG, "Started XML parsing: ${cachedFile.name}.")
 
         return try {

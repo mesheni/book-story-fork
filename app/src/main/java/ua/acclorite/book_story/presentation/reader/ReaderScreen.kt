@@ -66,6 +66,7 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
     companion object {
         const val CHAPTERS_DRAWER = "chapters_drawer"
         const val SETTINGS_BOTTOM_SHEET = "settings_bottom_sheet"
+        const val NOTES_BOTTOM_SHEET = "notes_bottom_sheet"
     }
 
     @OptIn(ExperimentalLayoutApi::class)
@@ -434,6 +435,7 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
             horizontalLimiterDimming = settings.horizontalLimiterDimming.value,
             currentChapterProgress = state.value.currentChapterProgress,
             isLoading = state.value.isLoading,
+            textExtractionProgress = state.value.textExtractionProgress,
             errorMessage = state.value.errorMessage,
             showPdfModeDialog = state.value.showPdfModeDialog,
             pdfUri = state.value.pdfUri,
@@ -446,7 +448,11 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
             pdfSearchQuery = state.value.pdfSearchQuery,
             pdfSearchResults = state.value.pdfSearchResults,
             isPdfSearching = state.value.isPdfSearching,
+            pdfSearchProgress = state.value.pdfSearchProgress,
             pdfSearchError = state.value.pdfSearchError,
+            notes = state.value.notes,
+            editingNote = state.value.editingNote,
+            loadPdfWordBoxes = screenModel::getPdfWordBoxes,
             selectPdfMode = screenModel::onEvent,
             dismissPdfModeDialog = screenModel::onEvent,
             showPdfModeDialogAction = screenModel::onEvent,
@@ -507,6 +513,14 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
             openWebBrowser = screenModel::onEvent,
             openTranslator = screenModel::onEvent,
             openDictionary = screenModel::onEvent,
+            addTextNote = screenModel::onEvent,
+            addPdfNote = screenModel::onEvent,
+            saveNote = screenModel::onEvent,
+            deleteNote = screenModel::onEvent,
+            editNote = screenModel::onEvent,
+            dismissNoteEditor = screenModel::onEvent,
+            selectNote = screenModel::onEvent,
+            showNotesBottomSheet = screenModel::onEvent,
             scrollToChapter = screenModel::onEvent,
             showSettingsBottomSheet = screenModel::onEvent,
             dismissBottomSheet = screenModel::onEvent,

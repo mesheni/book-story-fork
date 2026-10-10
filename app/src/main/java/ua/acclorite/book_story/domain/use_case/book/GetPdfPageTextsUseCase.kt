@@ -13,6 +13,8 @@ import javax.inject.Inject
 class GetPdfPageTextsUseCase @Inject constructor(
     private val repository: PdfPageTextRepository
 ) {
-    suspend operator fun invoke(bookId: Int): Result<List<PdfPageText>> =
-        repository.getPageTexts(bookId)
+    suspend operator fun invoke(
+        bookId: Int,
+        onProgress: (Float) -> Unit = {}
+    ): Result<List<PdfPageText>> = repository.getPageTexts(bookId, onProgress)
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ fun PdfSearchDialog(
     query: String,
     results: List<PdfSearchResult>,
     isSearching: Boolean,
+    progress: Float?,
     error: String?,
     onQueryChange: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -52,6 +54,19 @@ fun PdfSearchDialog(
                 )
 
                 when {
+                    isSearching && progress != null -> Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            stringResource(R.string.pdf_search_progress, (progress * 100).toInt())
+                        )
+                    }
+
                     isSearching -> Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),

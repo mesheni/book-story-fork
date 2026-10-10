@@ -40,7 +40,7 @@ class PdfPageTextRepositoryImpl @Inject constructor(
     private val cacheMutex = Mutex()
     private val memoryCache = ConcurrentHashMap<Int, Pair<String, List<PdfPageText>>>()
 
-    override suspend fun getPageTexts(bookId: Int): Result<List<PdfPageText>> = try {
+    override suspend fun getPageTexts(bookId: Int, onProgress: (Float) -> Unit): Result<List<PdfPageText>> = try {
         Result.success(cacheMutex.withLock { withContext(Dispatchers.IO) {
             val book = bookRepository.getBook(bookId).getOrThrow()
             require(book.filePath.endsWith(".pdf", ignoreCase = true)) {
@@ -79,7 +79,9 @@ class PdfPageTextRepositoryImpl @Inject constructor(
                         return@withContext pages
                     }
 
-                    for (pageIndex in 0 until document.numberOfPages) {
+                    val totalPages = document.numberOfPages
+                    onProgress(0f)
+                    for (pageIndex in 0 until totalPages) {
                         coroutineContext.ensureActive()
                         stripper.startPage = pageIndex + 1
                         stripper.endPage = pageIndex + 1
@@ -89,6 +91,7 @@ class PdfPageTextRepositoryImpl @Inject constructor(
                             sourceSignature = sourceSignature,
                             text = stripper.getText(document).trim()
                         )
+                        onProgress((pageIndex + 1) / totalPages.toFloat())
                     }
                 }
             }

@@ -421,6 +421,8 @@
     <string name="pdf_search_no_results">Совпадений не найдено</string>
     <string name="pdf_search_error">Не удалось выполнить поиск по PDF</string>
     <string name="pdf_search_extracting">Подготовка документа к поиску…</string>
+    <string name="pdf_search_progress">Подготовка документа к поиску… %1$d%%</string>
+    <string name="pdf_text_progress">Обработка документа… %1$d%%</string>
     <string name="pdf_search_page_number">Страница %1$d</string>
     <string name="pdf_viewer_error">Не удалось открыть этот PDF</string>
     <string name="clear_selected_items_content_desc">Очистить выбранные элементы</string>
@@ -457,6 +459,14 @@
     <string name="collapse_content_desc">Свернуть</string>
     <string name="remove_content_desc">Удалить</string>
     <string name="note_content_desc">Заметка</string>
+    <string name="add_to_notes">В заметки</string>
+    <string name="notes">Заметки</string>
+    <string name="note_title">Заметка</string>
+    <string name="notes_empty">Заметок пока нет</string>
+    <string name="note_comment_hint">Комментарий (необязательно)</string>
+    <string name="note_save">Сохранить</string>
+    <string name="note_pdf_page">Стр. %1$d</string>
+    <string name="pdf_no_text_layer">На этой странице нет текста для выделения</string>
 
 
     <!-- v1.8.0: библиотека, категории, настройки отображения -->

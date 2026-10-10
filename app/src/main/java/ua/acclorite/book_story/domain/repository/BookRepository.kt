@@ -25,7 +25,8 @@ interface BookRepository {
     ): Result<Book>
 
     suspend fun getText(
-        bookId: Int
+        bookId: Int,
+        onProgress: (Float) -> Unit = {}
     ): Result<List<ReaderText>>
 
     suspend fun getFileFromBook(

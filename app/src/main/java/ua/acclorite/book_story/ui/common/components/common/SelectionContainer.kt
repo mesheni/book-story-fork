@@ -37,6 +37,7 @@ private const val MENU_ITEM_SHARE = 1
 private const val MENU_ITEM_WEB = 2
 private const val MENU_ITEM_TRANSLATE = 3
 private const val MENU_ITEM_DICTIONARY = 4
+private const val MENU_ITEM_NOTE = 5
 
 /**
  * Text ActionMode callback.
@@ -49,7 +50,8 @@ private class TextActionModeCallback(
     var onShareRequested: (() -> Unit)? = null,
     var onWebSearchRequested: (() -> Unit)? = null,
     var onTranslateRequested: (() -> Unit)? = null,
-    var onDictionaryRequested: (() -> Unit)? = null
+    var onDictionaryRequested: (() -> Unit)? = null,
+    var onNoteRequested: (() -> Unit)? = null
 ) : ActionMode.Callback {
     override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
         requireNotNull(menu)
@@ -80,6 +82,11 @@ private class TextActionModeCallback(
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
 
+        onNoteRequested?.let {
+            menu.add(0, MENU_ITEM_NOTE, 5, context.getString(R.string.add_to_notes))
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
+
         return true
     }
 
@@ -94,6 +101,7 @@ private class TextActionModeCallback(
             MENU_ITEM_WEB -> onWebSearchRequested?.invoke()
             MENU_ITEM_TRANSLATE -> onTranslateRequested?.invoke()
             MENU_ITEM_DICTIONARY -> onDictionaryRequested?.invoke()
+            MENU_ITEM_NOTE -> onNoteRequested?.invoke()
             else -> return false
         }
         mode?.finish()
@@ -147,7 +155,8 @@ private class SelectionToolbar(
     private val onShareRequest: ((String) -> Unit)?,
     private val onWebSearchRequest: ((String) -> Unit)?,
     private val onTranslateRequest: ((String) -> Unit)?,
-    private val onDictionaryRequest: ((String) -> Unit)?
+    private val onDictionaryRequest: ((String) -> Unit)?,
+    private val onNoteRequest: ((String) -> Unit)?
 ) : TextToolbar {
     private var actionMode: ActionMode? = null
     private val callback = TextActionModeCallback(context = context)
@@ -229,6 +238,21 @@ private class SelectionToolbar(
                 clipboardManager.setPrimaryClip(ClipData.newPlainText(null, " "))
             }
         }
+        callback.onNoteRequested = {
+            val previousClipboard = clipboardManager.primaryClip
+            onCopyRequested?.invoke()
+            val currentClipboard = clipboardManager.text
+
+            onNoteRequest?.invoke(currentClipboard.toString())
+
+            if (previousClipboard != null) {
+                clipboardManager.setPrimaryClip(
+                    previousClipboard
+                )
+            } else {
+                clipboardManager.setPrimaryClip(ClipData.newPlainText(null, " "))
+            }
+        }
 
         if (actionMode == null) {
             status = TextToolbarStatus.Shown
@@ -254,6 +278,7 @@ private class SelectionToolbar(
  * @param onCopyRequested Callback for when the copy option is clicked.
  * @param onTranslateRequested Callback for when the translate option is clicked.
  * @param onDictionaryRequested Callback for when the dictionary option is clicked.
+ * @param onNoteRequested Callback for when the "add to notes" option is clicked.
  * @param content Selection container content.
  */
 @Composable
@@ -263,6 +288,7 @@ fun SelectionContainer(
     onWebSearchRequested: ((String) -> Unit),
     onTranslateRequested: ((String) -> Unit),
     onDictionaryRequested: ((String) -> Unit),
+    onNoteRequested: ((String) -> Unit)? = null,
     content: @Composable (toolbarHidden: Boolean) -> Unit
 ) {
     val view = LocalView.current
@@ -287,6 +313,9 @@ fun SelectionContainer(
             },
             onDictionaryRequest = {
                 onDictionaryRequested(it)
+            },
+            onNoteRequest = onNoteRequested?.let { callback ->
+                { text -> callback(text) }
             }
         )
     }

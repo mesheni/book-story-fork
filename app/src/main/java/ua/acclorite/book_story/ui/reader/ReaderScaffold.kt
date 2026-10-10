@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import ua.acclorite.book_story.domain.model.library.Book
+import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
@@ -59,7 +60,9 @@ fun ReaderScaffold(
     horizontalLimiterDimming: Float,
     currentChapterProgress: Float,
     isLoading: Boolean,
+    textExtractionProgress: Float?,
     checkpoints: List<Checkpoint>,
+    notes: List<Note>,
     showMenu: Boolean,
     lockMenu: Boolean,
     contentPadding: PaddingValues,
@@ -100,6 +103,8 @@ fun ReaderScaffold(
     paragraphIndentation: TextUnit,
     doubleClickTranslation: Boolean,
     switchColorPreset: (SettingsEvent.OnSwitchColorPreset) -> Unit,
+    addTextNote: (ReaderEvent.OnAddTextNote) -> Unit,
+    showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
     menuVisibility: (ReaderEvent.OnMenuVisibility) -> Unit,
     leave: (ReaderEvent.OnLeave) -> Unit,
     restoreCheckpoint: (ReaderEvent.OnRestoreCheckpoint) -> Unit,
@@ -136,6 +141,7 @@ fun ReaderScaffold(
                     leave = leave,
                     switchColorPreset = switchColorPreset,
                     showSettingsBottomSheet = showSettingsBottomSheet,
+                    showNotesBottomSheet = showNotesBottomSheet,
                     showChaptersDrawer = showChaptersDrawer,
                     navigateBack = navigateBack,
                     navigateToBookInfo = navigateToBookInfo,
@@ -205,8 +211,10 @@ fun ReaderScaffold(
             paragraphIndentation = paragraphIndentation,
             doubleClickTranslation = doubleClickTranslation,
             isLoading = isLoading,
+            notes = notes,
             showMenu = showMenu,
             menuVisibility = menuVisibility,
+            addTextNote = addTextNote,
             openShareApp = openShareApp,
             openWebBrowser = openWebBrowser,
             openTranslator = openTranslator,
@@ -232,7 +240,7 @@ fun ReaderScaffold(
         )
 
         if (isLoading) {
-            ReaderLoadingPlaceholder()
+            ReaderLoadingPlaceholder(progress = textExtractionProgress)
         }
     }
 }

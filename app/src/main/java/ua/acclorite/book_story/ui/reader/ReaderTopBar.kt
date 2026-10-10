@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.Menu
@@ -52,6 +53,7 @@ fun ReaderTopBar(
     leave: (ReaderEvent.OnLeave) -> Unit,
     switchColorPreset: (SettingsEvent.OnSwitchColorPreset) -> Unit,
     showSettingsBottomSheet: (ReaderEvent.OnShowSettingsBottomSheet) -> Unit,
+    showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
     showChaptersDrawer: (ReaderEvent.OnShowChaptersDrawer) -> Unit,
     navigateToBookInfo: (ReaderEvent.OnNavigateToBookInfo) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
@@ -138,6 +140,15 @@ fun ReaderTopBar(
                     ) {
                         showChaptersDrawer(ReaderEvent.OnShowChaptersDrawer)
                     }
+                }
+
+                IconButton(
+                    icon = Icons.AutoMirrored.Outlined.Notes,
+                    contentDescription = R.string.notes,
+                    disableOnClick = false,
+                    enabled = !lockMenu
+                ) {
+                    showNotesBottomSheet(ReaderEvent.OnShowNotesBottomSheet)
                 }
 
                 if (book.filePath.endsWith(".pdf", ignoreCase = true)) {

@@ -22,6 +22,8 @@ import ua.acclorite.book_story.data.mapper.file.FileMapper
 import ua.acclorite.book_story.data.mapper.file.FileMapperImpl
 import ua.acclorite.book_story.data.mapper.history.HistoryMapper
 import ua.acclorite.book_story.data.mapper.history.HistoryMapperImpl
+import ua.acclorite.book_story.data.mapper.note.NoteMapper
+import ua.acclorite.book_story.data.mapper.note.NoteMapperImpl
 import ua.acclorite.book_story.data.parser.cover.CoverParser
 import ua.acclorite.book_story.data.parser.cover.CoverParserImpl
 import ua.acclorite.book_story.data.parser.file.FileParser
@@ -33,16 +35,20 @@ import ua.acclorite.book_story.data.repository.CategoryRepositoryImpl
 import ua.acclorite.book_story.data.repository.ColorPresetRepositoryImpl
 import ua.acclorite.book_story.data.repository.FileSystemRepositoryImpl
 import ua.acclorite.book_story.data.repository.HistoryRepositoryImpl
+import ua.acclorite.book_story.data.repository.NoteRepositoryImpl
 import ua.acclorite.book_story.data.repository.PermissionRepositoryImpl
 import ua.acclorite.book_story.data.repository.PdfPageTextRepositoryImpl
+import ua.acclorite.book_story.data.repository.PdfWordBoxRepositoryImpl
 import ua.acclorite.book_story.data.repository.ReadingStatisticsRepositoryImpl
 import ua.acclorite.book_story.domain.repository.BookRepository
 import ua.acclorite.book_story.domain.repository.CategoryRepository
 import ua.acclorite.book_story.domain.repository.ColorPresetRepository
 import ua.acclorite.book_story.domain.repository.FileSystemRepository
 import ua.acclorite.book_story.domain.repository.HistoryRepository
+import ua.acclorite.book_story.domain.repository.NoteRepository
 import ua.acclorite.book_story.domain.repository.PermissionRepository
 import ua.acclorite.book_story.domain.repository.PdfPageTextRepository
+import ua.acclorite.book_story.domain.repository.PdfWordBoxRepository
 import ua.acclorite.book_story.domain.repository.ReadingStatisticsRepository
 import javax.inject.Singleton
 
@@ -78,6 +84,18 @@ abstract class RepositoryModule {
     abstract fun bindPdfPageTextRepository(
         pdfPageTextRepositoryImpl: PdfPageTextRepositoryImpl
     ): PdfPageTextRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNoteRepository(
+        noteRepositoryImpl: NoteRepositoryImpl
+    ): NoteRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPdfWordBoxRepository(
+        pdfWordBoxRepositoryImpl: PdfWordBoxRepositoryImpl
+    ): PdfWordBoxRepository
 
     @Binds
     @Singleton
@@ -126,6 +144,12 @@ abstract class RepositoryModule {
     abstract fun bindCategoryMapper(
         categoryMapperImpl: CategoryMapperImpl
     ): CategoryMapper
+
+    @Binds
+    @Singleton
+    abstract fun bindNoteMapper(
+        noteMapperImpl: NoteMapperImpl
+    ): NoteMapper
 
     @Binds
     @Singleton

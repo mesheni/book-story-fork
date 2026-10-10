@@ -26,7 +26,7 @@ class TextParserImpl @Inject constructor(
     private val xmlTextParser: XmlTextParser
 ) : TextParser {
 
-    override suspend fun parse(cachedFile: CachedFile): List<ReaderText> {
+    override suspend fun parse(cachedFile: CachedFile, onProgress: (Float) -> Unit): List<ReaderText> {
         if (!cachedFile.canAccess()) {
             logE(TAG, "File does not exist or no read access is granted.")
             return emptyList()
@@ -36,7 +36,7 @@ class TextParserImpl @Inject constructor(
         return withContext(Dispatchers.IO) {
             when (fileFormat) {
                 ".pdf" -> {
-                    pdfTextParser.parse(cachedFile)
+                    pdfTextParser.parse(cachedFile, onProgress)
                 }
 
                 ".epub" -> {

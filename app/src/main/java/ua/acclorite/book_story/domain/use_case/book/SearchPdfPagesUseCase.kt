@@ -13,11 +13,15 @@ import javax.inject.Inject
 class SearchPdfPagesUseCase @Inject constructor(
     private val getPdfPageTexts: GetPdfPageTextsUseCase
 ) {
-    suspend operator fun invoke(bookId: Int, query: String): Result<List<PdfSearchResult>> {
+    suspend operator fun invoke(
+        bookId: Int,
+        query: String,
+        onProgress: (Float) -> Unit = {}
+    ): Result<List<PdfSearchResult>> {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isEmpty()) return Result.success(emptyList())
 
-        return getPdfPageTexts(bookId).map { pages -> findMatches(pages, normalizedQuery) }
+        return getPdfPageTexts(bookId, onProgress).map { pages -> findMatches(pages, normalizedQuery) }
     }
 }
 

@@ -8,19 +8,35 @@ package ua.acclorite.book_story.ui.reader
 
 import androidx.compose.runtime.Composable
 import ua.acclorite.book_story.core.BottomSheet
+import ua.acclorite.book_story.domain.model.note.Note
+import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
 import ua.acclorite.book_story.presentation.reader.ReaderScreen
 
 @Composable
 fun ReaderBottomSheet(
     bottomSheet: BottomSheet?,
+    notes: List<Note>,
+    text: List<ReaderText>,
     menuVisibility: (ReaderEvent.OnMenuVisibility) -> Unit,
+    selectNote: (ReaderEvent.OnSelectNote) -> Unit,
+    editNote: (ReaderEvent.OnEditNote) -> Unit,
     dismissBottomSheet: (ReaderEvent.OnDismissBottomSheet) -> Unit
 ) {
     when (bottomSheet) {
         ReaderScreen.SETTINGS_BOTTOM_SHEET -> {
             ReaderSettingsBottomSheet(
                 menuVisibility = menuVisibility,
+                dismissBottomSheet = dismissBottomSheet
+            )
+        }
+
+        ReaderScreen.NOTES_BOTTOM_SHEET -> {
+            NotesBottomSheet(
+                notes = notes,
+                text = text,
+                selectNote = selectNote,
+                editNote = editNote,
                 dismissBottomSheet = dismissBottomSheet
             )
         }

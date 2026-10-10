@@ -14,8 +14,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import ua.acclorite.book_story.domain.model.library.Book
-import ua.acclorite.book_story.presentation.reader.ReaderEvent
+import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
+import ua.acclorite.book_story.domain.model.reader.PdfWord
+import ua.acclorite.book_story.presentation.reader.ReaderEvent
 import ua.acclorite.book_story.ui.common.components.common.AnimatedVisibility
 
 @Composable
@@ -29,21 +31,28 @@ fun PdfViewerScaffold(
     viewerError: String?,
     showMenu: Boolean,
     lockMenu: Boolean,
+    notes: List<Note>,
+    loadPdfWordBoxes: suspend (Int) -> List<PdfWord>?,
     leave: (ReaderEvent.OnLeave) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
     showPdfModeDialog: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
+    showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
     onPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit,
     onViewerInitialized: (ReaderEvent.OnPdfViewerInitialized) -> Unit,
     showPdfSearch: Boolean,
     pdfSearchQuery: String,
     pdfSearchResults: List<PdfSearchResult>,
     isPdfSearching: Boolean,
+    pdfSearchProgress: Float?,
     pdfSearchError: String?,
     showPdfSearchAction: (ReaderEvent.OnShowPdfSearch) -> Unit,
     onToggleMenu: (ReaderEvent.OnMenuVisibility) -> Unit,
     dismissPdfSearch: (ReaderEvent.OnDismissPdfSearch) -> Unit,
     pdfSearchQueryChanged: (ReaderEvent.OnPdfSearchQueryChanged) -> Unit,
-    selectPdfSearchResult: (ReaderEvent.OnSelectPdfSearchResult) -> Unit
+    selectPdfSearchResult: (ReaderEvent.OnSelectPdfSearchResult) -> Unit,
+    addPdfNote: (ReaderEvent.OnAddPdfNote) -> Unit,
+    openTranslator: (ReaderEvent.OnOpenTranslator) -> Unit,
+    openShareApp: (ReaderEvent.OnOpenShareApp) -> Unit
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -62,6 +71,7 @@ fun PdfViewerScaffold(
                     leave = leave,
                     navigateBack = navigateBack,
                     showPdfModeDialog = showPdfModeDialog,
+                    showNotesBottomSheet = showNotesBottomSheet,
                     showPdfSearch = showPdfSearchAction
                 )
             }
@@ -77,7 +87,12 @@ fun PdfViewerScaffold(
             onViewerInitialized = onViewerInitialized,
             onToggleMenu = {
                 onToggleMenu(ReaderEvent.OnMenuVisibility(show = !showMenu, saveCheckpoint = false))
-            }
+            },
+            notes = notes,
+            loadWordBoxes = loadPdfWordBoxes,
+            addPdfNote = addPdfNote,
+            openTranslator = openTranslator,
+            openShareApp = openShareApp
         )
     }
 
@@ -86,6 +101,7 @@ fun PdfViewerScaffold(
             query = pdfSearchQuery,
             results = pdfSearchResults,
             isSearching = isPdfSearching,
+            progress = pdfSearchProgress,
             error = pdfSearchError,
             onQueryChange = { pdfSearchQueryChanged(ReaderEvent.OnPdfSearchQueryChanged(it)) },
             onDismiss = { dismissPdfSearch(ReaderEvent.OnDismissPdfSearch) },

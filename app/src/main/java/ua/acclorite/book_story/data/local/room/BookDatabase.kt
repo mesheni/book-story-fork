@@ -19,6 +19,7 @@ import ua.acclorite.book_story.data.local.dto.BookEntity
 import ua.acclorite.book_story.data.local.dto.CategoryEntity
 import ua.acclorite.book_story.data.local.dto.ColorPresetEntity
 import ua.acclorite.book_story.data.local.dto.HistoryEntity
+import ua.acclorite.book_story.data.local.dto.NoteEntity
 import ua.acclorite.book_story.data.local.dto.PdfPageTextEntity
 import ua.acclorite.book_story.data.local.dto.ReadingSessionEntity
 import java.io.File
@@ -30,9 +31,10 @@ import java.io.File
         ColorPresetEntity::class,
         CategoryEntity::class,
         ReadingSessionEntity::class,
-        PdfPageTextEntity::class
+        PdfPageTextEntity::class,
+        NoteEntity::class
     ],
-    version = 19,
+    version = 20,
     autoMigrations = [
         AutoMigration(1, 2),
         AutoMigration(2, 3),
@@ -59,6 +61,7 @@ abstract class BookDatabase : RoomDatabase() {
     abstract val categoryDao: CategoryDao
     abstract val readingSessionDao: ReadingSessionDao
     abstract val pdfPageTextDao: PdfPageTextDao
+    abstract val noteDao: NoteDao
 }
 
 @Suppress("ClassName")
@@ -295,6 +298,30 @@ object DatabaseHelper {
                     PRIMARY KEY(`bookId`, `pageIndex`)
                 )
                 """.trimIndent()
+            )
+        }
+    }
+
+    val MANUAL_MIGRATION_19_20 = object : Migration(19, 20) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `NoteEntity` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `bookId` INTEGER NOT NULL,
+                    `selectedText` TEXT NOT NULL,
+                    `note` TEXT NOT NULL,
+                    `color` INTEGER NOT NULL,
+                    `chapterIndex` INTEGER,
+                    `segmentsJson` TEXT,
+                    `pageIndex` INTEGER,
+                    `rectsJson` TEXT,
+                    `createdAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_NoteEntity_bookId` ON `NoteEntity` (`bookId`)"
             )
         }
     }

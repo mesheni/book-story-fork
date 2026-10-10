@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import ua.acclorite.book_story.R
+import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
 import ua.acclorite.book_story.presentation.reader.model.ReaderFontThickness
@@ -89,14 +91,24 @@ fun ReaderLayout(
     paragraphIndentation: TextUnit,
     doubleClickTranslation: Boolean,
     isLoading: Boolean,
+    notes: List<Note>,
     showMenu: Boolean,
     menuVisibility: (ReaderEvent.OnMenuVisibility) -> Unit,
+    addTextNote: (ReaderEvent.OnAddTextNote) -> Unit,
     openShareApp: (ReaderEvent.OnOpenShareApp) -> Unit,
     openWebBrowser: (ReaderEvent.OnOpenWebBrowser) -> Unit,
     openTranslator: (ReaderEvent.OnOpenTranslator) -> Unit,
     openDictionary: (ReaderEvent.OnOpenDictionary) -> Unit
 ) {
     val activity = LocalActivity.current
+
+    // Char ranges to highlight per LazyColumn item, derived from anchored notes.
+    val noteHighlights = remember(notes) {
+        notes.flatMap { note ->
+            note.segments.map { segment -> segment.listItemIndex to NoteHighlight(segment.start, segment.end, note.color) }
+        }.groupBy({ it.first }, { it.second })
+    }
+
     SelectionContainer(
         onCopyRequested = {
             if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
@@ -130,6 +142,13 @@ fun ReaderLayout(
             openDictionary(
                 ReaderEvent.OnOpenDictionary(
                     textToDefine = textToDefine
+                )
+            )
+        },
+        onNoteRequested = { selectedText ->
+            addTextNote(
+                ReaderEvent.OnAddTextNote(
+                    selectedText = selectedText
                 )
             )
         }
@@ -215,6 +234,7 @@ fun ReaderLayout(
                                     doubleClickTranslation = doubleClickTranslation,
                                     highlightedReading = highlightedReading,
                                     highlightedReadingThickness = highlightedReadingThickness,
+                                    noteHighlights = noteHighlights[index].orEmpty(),
                                     toolbarHidden = toolbarHidden,
                                     openTranslator = openTranslator,
                                     menuVisibility = menuVisibility

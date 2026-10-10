@@ -10,5 +10,9 @@ import ua.acclorite.book_story.data.model.file.CachedFile
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 
 interface TextParser {
-    suspend fun parse(cachedFile: CachedFile): List<ReaderText>
+    /**
+     * @param onProgress parsed document share in 0..1, reported only
+     * by parsers that extract text per page (currently PDF).
+     */
+    suspend fun parse(cachedFile: CachedFile, onProgress: (Float) -> Unit = {}): List<ReaderText>
 }

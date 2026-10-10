@@ -27,6 +27,8 @@ import ua.acclorite.book_story.core.Drawer
 import ua.acclorite.book_story.core.ui.UIText
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.domain.model.library.PdfOpenMode
+import ua.acclorite.book_story.domain.model.note.Note
+import ua.acclorite.book_story.domain.model.reader.PdfWord
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
@@ -60,6 +62,7 @@ fun ReaderContent(
     horizontalLimiterDimming: Float,
     currentChapterProgress: Float,
     isLoading: Boolean,
+    textExtractionProgress: Float?,
     errorMessage: UIText?,
     showPdfModeDialog: Boolean,
     pdfUri: String?,
@@ -72,7 +75,11 @@ fun ReaderContent(
     pdfSearchQuery: String,
     pdfSearchResults: List<PdfSearchResult>,
     isPdfSearching: Boolean,
+    pdfSearchProgress: Float?,
     pdfSearchError: String?,
+    notes: List<Note>,
+    editingNote: Note?,
+    loadPdfWordBoxes: suspend (Int) -> List<PdfWord>?,
     selectPdfMode: (ReaderEvent.OnSelectPdfMode) -> Unit,
     dismissPdfModeDialog: (ReaderEvent.OnDismissPdfModeDialog) -> Unit,
     showPdfModeDialogAction: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
@@ -133,6 +140,14 @@ fun ReaderContent(
     openWebBrowser: (ReaderEvent.OnOpenWebBrowser) -> Unit,
     openTranslator: (ReaderEvent.OnOpenTranslator) -> Unit,
     openDictionary: (ReaderEvent.OnOpenDictionary) -> Unit,
+    addTextNote: (ReaderEvent.OnAddTextNote) -> Unit,
+    addPdfNote: (ReaderEvent.OnAddPdfNote) -> Unit,
+    saveNote: (ReaderEvent.OnSaveNote) -> Unit,
+    deleteNote: (ReaderEvent.OnDeleteNote) -> Unit,
+    editNote: (ReaderEvent.OnEditNote) -> Unit,
+    dismissNoteEditor: (ReaderEvent.OnDismissNoteEditor) -> Unit,
+    selectNote: (ReaderEvent.OnSelectNote) -> Unit,
+    showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
     scrollToChapter: (ReaderEvent.OnScrollToChapter) -> Unit,
     showSettingsBottomSheet: (ReaderEvent.OnShowSettingsBottomSheet) -> Unit,
     dismissBottomSheet: (ReaderEvent.OnDismissBottomSheet) -> Unit,
@@ -154,9 +169,22 @@ fun ReaderContent(
 
     ReaderBottomSheet(
         bottomSheet = bottomSheet,
+        notes = notes,
+        text = text,
         menuVisibility = menuVisibility,
+        selectNote = selectNote,
+        editNote = editNote,
         dismissBottomSheet = dismissBottomSheet
     )
+
+    editingNote?.let { note ->
+        NoteEditorDialog(
+            note = note,
+            saveNote = saveNote,
+            deleteNote = deleteNote,
+            dismiss = dismissNoteEditor
+        )
+    }
 
     if (book.pdfOpenMode == PdfOpenMode.NATIVE_PDF) {
         PdfViewerScaffold(
@@ -169,21 +197,28 @@ fun ReaderContent(
             viewerError = pdfViewerError,
             showMenu = showMenu,
             lockMenu = lockMenu,
+            notes = notes,
+            loadPdfWordBoxes = loadPdfWordBoxes,
             leave = leave,
             navigateBack = navigateBack,
             showPdfModeDialog = showPdfModeDialogAction,
+            showNotesBottomSheet = showNotesBottomSheet,
             onPageChanged = pdfPageChanged,
             onViewerInitialized = pdfViewerInitialized,
             showPdfSearch = showPdfSearch,
             pdfSearchQuery = pdfSearchQuery,
             pdfSearchResults = pdfSearchResults,
             isPdfSearching = isPdfSearching,
+            pdfSearchProgress = pdfSearchProgress,
             pdfSearchError = pdfSearchError,
             showPdfSearchAction = showPdfSearchAction,
             onToggleMenu = pdfMenuVisibility,
             dismissPdfSearch = dismissPdfSearch,
             pdfSearchQueryChanged = pdfSearchQueryChanged,
-            selectPdfSearchResult = selectPdfSearchResult
+            selectPdfSearchResult = selectPdfSearchResult,
+            addPdfNote = addPdfNote,
+            openTranslator = openTranslator,
+            openShareApp = openShareApp
         )
     } else if (isLoading || errorMessage == null) {
         ReaderScaffold(
@@ -204,7 +239,9 @@ fun ReaderContent(
             horizontalLimiterDimming = horizontalLimiterDimming,
             currentChapterProgress = currentChapterProgress,
             isLoading = isLoading,
+            textExtractionProgress = textExtractionProgress,
             checkpoints = checkpoints,
+            notes = notes,
             showMenu = showMenu,
             lockMenu = lockMenu,
             contentPadding = contentPadding,
@@ -245,6 +282,8 @@ fun ReaderContent(
             paragraphIndentation = paragraphIndentation,
             doubleClickTranslation = doubleClickTranslation,
             switchColorPreset = switchColorPreset,
+            addTextNote = addTextNote,
+            showNotesBottomSheet = showNotesBottomSheet,
             menuVisibility = menuVisibility,
             leave = leave,
             restoreCheckpoint = restoreCheckpoint,
