@@ -57,7 +57,7 @@ fun TextSearchDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CircularProgressIndicator()
-                        Text(stringResource(R.string.search_book_title))
+                        Text(stringResource(R.string.text_search_in_progress))
                     }
 
                     query.isNotBlank() && results.isEmpty() -> Text(

@@ -475,6 +475,8 @@
     <string name="search_book_hint">Найти текст</string>
     <string name="text_search_results_count">Результатов: %1$d</string>
     <string name="notes_export_content_desc">Поделиться заметками</string>
+    <string name="notes_export_error">Не удалось экспортировать заметки</string>
+    <string name="text_search_in_progress">Идёт поиск…</string>
 
 
     <!-- v1.8.0: библиотека, категории, настройки отображения -->

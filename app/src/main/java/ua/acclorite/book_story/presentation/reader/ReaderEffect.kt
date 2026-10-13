@@ -22,6 +22,9 @@ sealed class ReaderEffect {
         val uri: Uri
     ) : ReaderEffect()
 
+    /** Notes export failed (the file could not be written). */
+    data object OnNotesExportError : ReaderEffect()
+
     data class OnOpenTranslator(
         val textToTranslate: String,
         val translateWholeParagraph: Boolean

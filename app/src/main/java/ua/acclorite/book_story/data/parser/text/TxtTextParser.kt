@@ -39,7 +39,7 @@ class TxtTextParser @Inject constructor(
             var chapterAdded = false
 
             withContext(Dispatchers.IO) {
-                cachedFile.openInputStream()?.let { stream ->
+                cachedFile.openInputStream()?.use { stream ->
                     // Sniff the head of the stream first: TXT files are often
                     // windows-1251, while a plain reader would force UTF-8.
                     val head = readHead(stream)

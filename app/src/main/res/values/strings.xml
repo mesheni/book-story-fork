@@ -554,5 +554,7 @@
     <string name="search_book_hint">Search text</string>
     <string name="text_search_results_count">Results: %1$d</string>
     <string name="notes_export_content_desc">Share notes</string>
+    <string name="notes_export_error">Could not export notes</string>
+    <string name="text_search_in_progress">Searching…</string>
 
 </resources>

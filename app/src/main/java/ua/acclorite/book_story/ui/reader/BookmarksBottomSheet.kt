@@ -174,7 +174,7 @@ fun BookmarksBottomSheet(
 @Composable
 private fun bookmarkLocation(bookmark: Bookmark): String? {
     return when {
-        bookmark.anchoredToPdf -> stringResource(R.string.note_pdf_page, bookmark.pageIndex!! + 1)
+        bookmark.anchoredToPdf -> stringResource(R.string.note_pdf_page, (bookmark.pageIndex ?: 0) + 1)
         bookmark.chapterTitle != null -> bookmark.chapterTitle
         else -> null
     }

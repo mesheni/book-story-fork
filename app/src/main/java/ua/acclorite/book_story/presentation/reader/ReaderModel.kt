@@ -171,6 +171,11 @@ class ReaderModel @Inject constructor(
 
                 is ReaderEvent.OnSelectPdfMode -> {
                     withContext(Dispatchers.Default) {
+                        // A pending text-search dialog must not survive
+                        // the mode switch (its results are index-based).
+                        textSearchGeneration.incrementAndGet()
+                        textSearchJob?.cancel()
+
                         val book = _state.value.book.copy(pdfOpenMode = event.mode)
                         updateBookUseCase(book)
                         _state.update {
@@ -181,7 +186,10 @@ class ReaderModel @Inject constructor(
                                 isLoading = event.mode == PdfOpenMode.TEXT,
                                 textExtractionProgress = null,
                                 errorMessage = null,
-                                text = if (event.mode == PdfOpenMode.TEXT) it.text else emptyList()
+                                text = if (event.mode == PdfOpenMode.TEXT) it.text else emptyList(),
+                                showTextSearch = false,
+                                textSearchResults = emptyList(),
+                                isTextSearching = false
                             )
                         }
 
@@ -715,6 +723,8 @@ class ReaderModel @Inject constructor(
                             )
                         }.onSuccess { uri ->
                             _effects.emit(ReaderEffect.OnShareNotes(uri))
+                        }.onFailure {
+                            _effects.emit(ReaderEffect.OnNotesExportError)
                         }
                     }
                 }
@@ -844,7 +854,7 @@ class ReaderModel @Inject constructor(
                         it.copy(
                             textSearchQuery = query,
                             textSearchResults = if (query.isBlank()) emptyList() else it.textSearchResults,
-                            isTextSearching = query.isNotBlank() && _state.value.text.isNotEmpty()
+                            isTextSearching = query.isNotBlank() && it.text.isNotEmpty()
                         )
                     }
                     textSearchJob?.cancel()

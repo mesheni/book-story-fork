@@ -135,6 +135,11 @@ fun ReaderEffects(
                         .showToast(context = activity, longToast = false)
                 }
 
+                is ReaderEffect.OnNotesExportError -> {
+                    activity.getString(R.string.notes_export_error)
+                        .showToast(context = activity, longToast = false)
+                }
+
                 is ReaderEffect.OnOpenWebBrowser -> {
                     val browserIntent = Intent()
 

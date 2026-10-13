@@ -337,12 +337,12 @@ object DatabaseHelper {
                     `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     `bookId` INTEGER NOT NULL,
                     `createdAt` INTEGER NOT NULL,
-                    `scrollIndex` INTEGER NOT NULL DEFAULT 0,
-                    `scrollOffset` INTEGER NOT NULL DEFAULT 0,
-                    `progress` REAL NOT NULL DEFAULT 0.0,
-                    `previewText` TEXT NOT NULL DEFAULT '',
-                    `chapterTitle` TEXT DEFAULT NULL,
-                    `pageIndex` INTEGER DEFAULT NULL
+                    `scrollIndex` INTEGER NOT NULL,
+                    `scrollOffset` INTEGER NOT NULL,
+                    `progress` REAL NOT NULL,
+                    `previewText` TEXT NOT NULL,
+                    `chapterTitle` TEXT,
+                    `pageIndex` INTEGER
                 )
                 """.trimIndent()
             )
