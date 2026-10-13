@@ -25,12 +25,14 @@ import androidx.compose.ui.unit.TextUnit
 import ua.acclorite.book_story.core.BottomSheet
 import ua.acclorite.book_story.core.Drawer
 import ua.acclorite.book_story.core.ui.UIText
+import ua.acclorite.book_story.domain.model.bookmark.Bookmark
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.PdfWord
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
+import ua.acclorite.book_story.domain.model.reader.TextSearchResult
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
@@ -79,6 +81,11 @@ fun ReaderContent(
     pdfSearchError: String?,
     notes: List<Note>,
     editingNote: Note?,
+    bookmarks: List<Bookmark>,
+    showTextSearch: Boolean,
+    textSearchQuery: String,
+    textSearchResults: List<TextSearchResult>,
+    isTextSearching: Boolean,
     loadPdfWordBoxes: suspend (Int) -> List<PdfWord>?,
     selectPdfMode: (ReaderEvent.OnSelectPdfMode) -> Unit,
     dismissPdfModeDialog: (ReaderEvent.OnDismissPdfModeDialog) -> Unit,
@@ -148,6 +155,15 @@ fun ReaderContent(
     dismissNoteEditor: (ReaderEvent.OnDismissNoteEditor) -> Unit,
     selectNote: (ReaderEvent.OnSelectNote) -> Unit,
     showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
+    exportNotes: (ReaderEvent.OnExportNotes) -> Unit,
+    addBookmark: (ReaderEvent.OnAddBookmark) -> Unit,
+    selectBookmark: (ReaderEvent.OnSelectBookmark) -> Unit,
+    deleteBookmark: (ReaderEvent.OnDeleteBookmark) -> Unit,
+    showBookmarksBottomSheet: (ReaderEvent.OnShowBookmarksBottomSheet) -> Unit,
+    showTextSearchAction: (ReaderEvent.OnShowTextSearch) -> Unit,
+    dismissTextSearch: (ReaderEvent.OnDismissTextSearch) -> Unit,
+    textSearchQueryChanged: (ReaderEvent.OnTextSearchQueryChanged) -> Unit,
+    selectTextSearchResult: (ReaderEvent.OnSelectTextSearchResult) -> Unit,
     scrollToChapter: (ReaderEvent.OnScrollToChapter) -> Unit,
     showSettingsBottomSheet: (ReaderEvent.OnShowSettingsBottomSheet) -> Unit,
     dismissBottomSheet: (ReaderEvent.OnDismissBottomSheet) -> Unit,
@@ -170,10 +186,15 @@ fun ReaderContent(
     ReaderBottomSheet(
         bottomSheet = bottomSheet,
         notes = notes,
+        bookmarks = bookmarks,
         text = text,
         menuVisibility = menuVisibility,
         selectNote = selectNote,
         editNote = editNote,
+        exportNotes = exportNotes,
+        addBookmark = addBookmark,
+        selectBookmark = selectBookmark,
+        deleteBookmark = deleteBookmark,
         dismissBottomSheet = dismissBottomSheet
     )
 
@@ -183,6 +204,17 @@ fun ReaderContent(
             saveNote = saveNote,
             deleteNote = deleteNote,
             dismiss = dismissNoteEditor
+        )
+    }
+
+    if (showTextSearch) {
+        TextSearchDialog(
+            query = textSearchQuery,
+            results = textSearchResults,
+            isSearching = isTextSearching,
+            onQueryChange = { textSearchQueryChanged(ReaderEvent.OnTextSearchQueryChanged(it)) },
+            onDismiss = { dismissTextSearch(ReaderEvent.OnDismissTextSearch) },
+            onSelectResult = { selectTextSearchResult(ReaderEvent.OnSelectTextSearchResult(it)) }
         )
     }
 
@@ -203,6 +235,7 @@ fun ReaderContent(
             navigateBack = navigateBack,
             showPdfModeDialog = showPdfModeDialogAction,
             showNotesBottomSheet = showNotesBottomSheet,
+            showBookmarksBottomSheet = showBookmarksBottomSheet,
             onPageChanged = pdfPageChanged,
             onViewerInitialized = pdfViewerInitialized,
             showPdfSearch = showPdfSearch,
@@ -284,6 +317,8 @@ fun ReaderContent(
             switchColorPreset = switchColorPreset,
             addTextNote = addTextNote,
             showNotesBottomSheet = showNotesBottomSheet,
+            showBookmarksBottomSheet = showBookmarksBottomSheet,
+            showTextSearch = showTextSearchAction,
             menuVisibility = menuVisibility,
             leave = leave,
             restoreCheckpoint = restoreCheckpoint,

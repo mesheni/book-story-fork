@@ -64,6 +64,7 @@ object AppModule {
             DatabaseHelper.MANUAL_MIGRATION_17_18, // add local reading statistics
             DatabaseHelper.MANUAL_MIGRATION_18_19, // cache extracted PDF page text
             DatabaseHelper.MANUAL_MIGRATION_19_20, // reader notes with highlights
+            DatabaseHelper.MANUAL_MIGRATION_20_21, // reading bookmarks
         ).allowMainThreadQueries().build().also { database ->
             // Additional Migrations
             DatabaseHelper.AUTO_MIGRATION_7_8.removeBooksDir(app)

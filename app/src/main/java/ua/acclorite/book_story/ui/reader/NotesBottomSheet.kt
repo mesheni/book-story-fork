@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +53,7 @@ fun NotesBottomSheet(
     text: List<ReaderText>,
     selectNote: (ReaderEvent.OnSelectNote) -> Unit,
     editNote: (ReaderEvent.OnEditNote) -> Unit,
+    exportNotes: (ReaderEvent.OnExportNotes) -> Unit,
     dismissBottomSheet: (ReaderEvent.OnDismissBottomSheet) -> Unit
 ) {
     ModalBottomSheet(
@@ -66,11 +68,30 @@ fun NotesBottomSheet(
         Column(
             modifier = Modifier.padding(horizontal = 16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.notes),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.notes),
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                if (notes.isNotEmpty()) {
+                    IconButton(
+                        onClick = { exportNotes(ReaderEvent.OnExportNotes) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(R.string.notes_export_content_desc),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
 
             if (notes.isEmpty()) {
                 StyledText(

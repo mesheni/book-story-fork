@@ -16,6 +16,7 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import ua.acclorite.book_story.data.local.dto.BookEntity
+import ua.acclorite.book_story.data.local.dto.BookmarkEntity
 import ua.acclorite.book_story.data.local.dto.CategoryEntity
 import ua.acclorite.book_story.data.local.dto.ColorPresetEntity
 import ua.acclorite.book_story.data.local.dto.HistoryEntity
@@ -32,9 +33,10 @@ import java.io.File
         CategoryEntity::class,
         ReadingSessionEntity::class,
         PdfPageTextEntity::class,
-        NoteEntity::class
+        NoteEntity::class,
+        BookmarkEntity::class
     ],
-    version = 20,
+    version = 21,
     autoMigrations = [
         AutoMigration(1, 2),
         AutoMigration(2, 3),
@@ -62,6 +64,7 @@ abstract class BookDatabase : RoomDatabase() {
     abstract val readingSessionDao: ReadingSessionDao
     abstract val pdfPageTextDao: PdfPageTextDao
     abstract val noteDao: NoteDao
+    abstract val bookmarkDao: BookmarkDao
 }
 
 @Suppress("ClassName")
@@ -322,6 +325,29 @@ object DatabaseHelper {
             )
             database.execSQL(
                 "CREATE INDEX IF NOT EXISTS `index_NoteEntity_bookId` ON `NoteEntity` (`bookId`)"
+            )
+        }
+    }
+
+    val MANUAL_MIGRATION_20_21 = object : Migration(20, 21) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `BookmarkEntity` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `bookId` INTEGER NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    `scrollIndex` INTEGER NOT NULL DEFAULT 0,
+                    `scrollOffset` INTEGER NOT NULL DEFAULT 0,
+                    `progress` REAL NOT NULL DEFAULT 0.0,
+                    `previewText` TEXT NOT NULL DEFAULT '',
+                    `chapterTitle` TEXT DEFAULT NULL,
+                    `pageIndex` INTEGER DEFAULT NULL
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_BookmarkEntity_bookId` ON `BookmarkEntity` (`bookId`)"
             )
         }
     }

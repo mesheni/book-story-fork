@@ -5,11 +5,14 @@
  */
 package ua.acclorite.book_story.presentation.reader
 
+import android.content.Context
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.snapshotFlow
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -30,7 +33,9 @@ import kotlinx.coroutines.withContext
 import ua.acclorite.book_story.R
 import ua.acclorite.book_story.core.helpers.coerceAndPreventNaN
 import ua.acclorite.book_story.core.ui.UIText
+import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
+import ua.acclorite.book_story.domain.model.bookmark.Bookmark
 import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import ua.acclorite.book_story.domain.use_case.book.GetBookUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetChapterProgressUseCase
@@ -39,9 +44,14 @@ import ua.acclorite.book_story.domain.use_case.book.GetPdfWordBoxesUseCase
 import ua.acclorite.book_story.domain.use_case.book.ClosePdfWordBoxesUseCase
 import ua.acclorite.book_story.domain.use_case.book.GetTextUseCase
 import ua.acclorite.book_story.domain.use_case.book.SearchPdfPagesUseCase
+import ua.acclorite.book_story.domain.use_case.book.SearchTextUseCase
 import ua.acclorite.book_story.domain.use_case.book.UpdateBookUseCase
+import ua.acclorite.book_story.domain.use_case.bookmark.AddBookmarkUseCase
+import ua.acclorite.book_story.domain.use_case.bookmark.DeleteBookmarkUseCase
+import ua.acclorite.book_story.domain.use_case.bookmark.GetBookmarksUseCase
 import ua.acclorite.book_story.domain.use_case.history.GetHistoryForBookUseCase
 import ua.acclorite.book_story.domain.use_case.note.DeleteNoteUseCase
+import ua.acclorite.book_story.domain.use_case.note.ExportNotesUseCase
 import ua.acclorite.book_story.domain.use_case.note.GetNotesUseCase
 import ua.acclorite.book_story.domain.use_case.note.InsertNoteUseCase
 import ua.acclorite.book_story.domain.use_case.note.UpdateNoteUseCase
@@ -53,6 +63,7 @@ import ua.acclorite.book_story.presentation.history.HistoryScreen
 import ua.acclorite.book_story.presentation.library.LibraryScreen
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
 import ua.acclorite.book_story.presentation.reader.model.NoteAnchorMatcher
+import java.io.File
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
@@ -69,12 +80,18 @@ class ReaderModel @Inject constructor(
     private val readingSessionTracker: ReadingSessionTracker,
     private val settingsManager: SettingsManager,
     private val searchPdfPagesUseCase: SearchPdfPagesUseCase,
+    private val searchTextUseCase: SearchTextUseCase,
     private val getNotesUseCase: GetNotesUseCase,
     private val insertNoteUseCase: InsertNoteUseCase,
     private val updateNoteUseCase: UpdateNoteUseCase,
     private val deleteNoteUseCase: DeleteNoteUseCase,
+    private val exportNotesUseCase: ExportNotesUseCase,
     private val getPdfWordBoxesUseCase: GetPdfWordBoxesUseCase,
-    private val closePdfWordBoxesUseCase: ClosePdfWordBoxesUseCase
+    private val closePdfWordBoxesUseCase: ClosePdfWordBoxesUseCase,
+    private val getBookmarksUseCase: GetBookmarksUseCase,
+    private val addBookmarkUseCase: AddBookmarkUseCase,
+    private val deleteBookmarkUseCase: DeleteBookmarkUseCase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val mutex = Mutex()
@@ -89,7 +106,10 @@ class ReaderModel @Inject constructor(
     private var pdfSearchJob: Job? = null
     private var pdfPageSaveJob: Job? = null
     private var notesJob: Job? = null
+    private var bookmarksJob: Job? = null
+    private var textSearchJob: Job? = null
     private val pdfSearchGeneration = AtomicInteger(0)
+    private val textSearchGeneration = AtomicInteger(0)
     private val eventStack = mutableListOf<Job>()
 
     fun onEvent(event: ReaderEvent) {
@@ -665,6 +685,205 @@ class ReaderModel @Inject constructor(
                     }
                 }
 
+                is ReaderEvent.OnExportNotes -> {
+                    val currentState = _state.value
+                    if (currentState.notes.isEmpty()) return@launch
+
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            val markdown = exportNotesUseCase(
+                                book = currentState.book,
+                                author = currentState.book.author.asString(context),
+                                notes = currentState.notes,
+                                text = currentState.text,
+                                pdfPageLabel = { page ->
+                                    context.getString(R.string.note_pdf_page, page + 1)
+                                }
+                            )
+                            val directory = File(context.cacheDir, "notes").apply { mkdirs() }
+                            directory.listFiles()?.forEach { it.delete() }
+                            val safeName = currentState.book.title
+                                .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                                .take(60)
+                                .ifBlank { "book" }
+                            val file = File(directory, "$safeName-notes.md")
+                                .apply { writeText(markdown, Charsets.UTF_8) }
+                            FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
+                            )
+                        }.onSuccess { uri ->
+                            _effects.emit(ReaderEffect.OnShareNotes(uri))
+                        }
+                    }
+                }
+
+                is ReaderEvent.OnShowBookmarksBottomSheet -> {
+                    _state.update {
+                        it.copy(
+                            bottomSheet = ReaderScreen.BOOKMARKS_BOTTOM_SHEET,
+                            drawer = null
+                        )
+                    }
+                }
+
+                is ReaderEvent.OnAddBookmark -> {
+                    withContext(Dispatchers.Default) {
+                        val state = _state.value
+                        if (state.lockMenu) return@withContext
+
+                        val bookmark = if (state.book.pdfOpenMode == PdfOpenMode.NATIVE_PDF) {
+                            Bookmark(
+                                bookId = state.book.id,
+                                createdAt = System.currentTimeMillis(),
+                                progress = state.book.pdfProgress,
+                                pageIndex = state.book.pdfPage
+                            )
+                        } else {
+                            if (state.text.isEmpty()) return@withContext
+
+                            val index = state.listState.firstVisibleItemIndex
+                            Bookmark(
+                                bookId = state.book.id,
+                                createdAt = System.currentTimeMillis(),
+                                scrollIndex = index,
+                                scrollOffset = state.listState.firstVisibleItemScrollOffset,
+                                progress = state.book.progress,
+                                previewText = bookmarkPreview(state.text, index),
+                                chapterTitle = state.currentChapter?.title
+                            )
+                        }
+
+                        // Do not duplicate a bookmark of the same position.
+                        val alreadyBookmarked = state.bookmarks.any { existing ->
+                            if (bookmark.pageIndex != null) {
+                                existing.pageIndex == bookmark.pageIndex
+                            } else {
+                                existing.pageIndex == null &&
+                                        existing.scrollIndex == bookmark.scrollIndex
+                            }
+                        }
+                        if (!alreadyBookmarked) {
+                            addBookmarkUseCase(bookmark)
+                        }
+                    }
+                }
+
+                is ReaderEvent.OnDeleteBookmark -> {
+                    deleteBookmarkUseCase(event.bookmarkId)
+                }
+
+                is ReaderEvent.OnSelectBookmark -> {
+                    _state.update { it.copy(bottomSheet = null) }
+
+                    when {
+                        event.bookmark.anchoredToPdf -> {
+                            if (_state.value.book.pdfOpenMode == PdfOpenMode.NATIVE_PDF) {
+                                _state.update {
+                                    it.copy(
+                                        book = it.book.copy(
+                                            pdfPage = event.bookmark.pageIndex ?: 0
+                                        ),
+                                        pdfNavigationRequest = it.pdfNavigationRequest + 1
+                                    )
+                                }
+                                updateBookUseCase(_state.value.book)
+                            }
+                        }
+
+                        else -> {
+                            // Text anchors are only reachable in the text layout.
+                            if (_state.value.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) {
+                                val target = event.bookmark.scrollIndex
+                                _state.value.listState.requestScrollToItem(
+                                    index = target,
+                                    scrollOffset = event.bookmark.scrollOffset
+                                )
+                                onEvent(ReaderEvent.OnUpdateChapter(target))
+                                onEvent(
+                                    ReaderEvent.OnChangeProgress(
+                                        progress = calculateProgress(target),
+                                        firstVisibleItemIndex = target,
+                                        firstVisibleItemOffset = event.bookmark.scrollOffset
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                is ReaderEvent.OnShowTextSearch -> {
+                    textSearchGeneration.incrementAndGet()
+                    textSearchJob?.cancel()
+                    _state.update {
+                        it.copy(
+                            showTextSearch = true,
+                            textSearchQuery = "",
+                            textSearchResults = emptyList(),
+                            isTextSearching = false
+                        )
+                    }
+                }
+
+                is ReaderEvent.OnDismissTextSearch -> {
+                    textSearchGeneration.incrementAndGet()
+                    textSearchJob?.cancel()
+                    _state.update {
+                        it.copy(
+                            showTextSearch = false,
+                            isTextSearching = false
+                        )
+                    }
+                }
+
+                is ReaderEvent.OnTextSearchQueryChanged -> {
+                    val generation = textSearchGeneration.incrementAndGet()
+                    val query = event.query
+                    _state.update {
+                        it.copy(
+                            textSearchQuery = query,
+                            textSearchResults = if (query.isBlank()) emptyList() else it.textSearchResults,
+                            isTextSearching = query.isNotBlank() && _state.value.text.isNotEmpty()
+                        )
+                    }
+                    textSearchJob?.cancel()
+                    if (query.isNotBlank()) {
+                        textSearchJob = viewModelScope.launch(Dispatchers.Default) {
+                            delay(250)
+                            val text = _state.value.text
+                            val results = searchTextUseCase(text, query)
+                            if (generation != textSearchGeneration.get()) return@launch
+                            _state.update {
+                                it.copy(
+                                    textSearchResults = results,
+                                    isTextSearching = false
+                                )
+                            }
+                        }
+                    }
+                }
+
+                is ReaderEvent.OnSelectTextSearchResult -> {
+                    textSearchGeneration.incrementAndGet()
+                    textSearchJob?.cancel()
+                    _state.update { it.copy(showTextSearch = false) }
+
+                    val target = event.listItemIndex
+                    _state.value.listState.requestScrollToItem(
+                        index = target,
+                        scrollOffset = 0
+                    )
+                    onEvent(ReaderEvent.OnUpdateChapter(target))
+                    onEvent(
+                        ReaderEvent.OnChangeProgress(
+                            progress = calculateProgress(target),
+                            firstVisibleItemIndex = target,
+                            firstVisibleItemOffset = 0
+                        )
+                    )
+                }
+
                 is ReaderEvent.OnShowSettingsBottomSheet -> {
                     _state.update {
                         it.copy(
@@ -743,6 +962,13 @@ class ReaderModel @Inject constructor(
                 }
             }
 
+            bookmarksJob?.cancel()
+            bookmarksJob = viewModelScope.launch {
+                getBookmarksUseCase(bookId).collect { bookmarks ->
+                    _state.update { it.copy(bookmarks = bookmarks) }
+                }
+            }
+
             if (book.pdfOpenMode != null || !book.filePath.endsWith(".pdf", true)) {
                 if (book.pdfOpenMode == PdfOpenMode.TEXT ||
                     !book.filePath.endsWith(".pdf", true)
@@ -759,6 +985,8 @@ class ReaderModel @Inject constructor(
                 job.cancel()
             }
             notesJob?.cancel()
+            bookmarksJob?.cancel()
+            textSearchJob?.cancel()
             _state.update { ReaderState() }
         }
     }
@@ -786,6 +1014,8 @@ class ReaderModel @Inject constructor(
         }
         eventStack.clear()
         notesJob?.cancel()
+        bookmarksJob?.cancel()
+        textSearchJob?.cancel()
         _state.update { ReaderState() }
     }
 
@@ -840,6 +1070,15 @@ class ReaderModel @Inject constructor(
             val chapterLength = endIndex - (startIndex + 1)
             currentIndexInChapter to chapterLength
         } ?: (-1 to -1)
+    }
+
+    /** Short text of the item at [index] to recognize the bookmark by. */
+    private fun bookmarkPreview(text: List<ReaderText>, index: Int): String {
+        return when (val item = text.getOrNull(index)) {
+            is ReaderText.Text -> item.line.text.take(120)
+            is Chapter -> item.title.take(120)
+            else -> ""
+        }
     }
 
     private fun calculateProgress(firstVisibleItemIndex: Int? = null): Float {

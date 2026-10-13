@@ -7,6 +7,7 @@
 package ua.acclorite.book_story.presentation.reader
 
 import androidx.compose.runtime.Immutable
+import ua.acclorite.book_story.domain.model.bookmark.Bookmark
 import ua.acclorite.book_story.domain.model.library.PdfOpenMode
 import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.note.NoteRect
@@ -126,6 +127,35 @@ sealed class ReaderEvent {
     /** Jump to the note location and close the notes sheet. */
     data class OnSelectNote(
         val note: Note
+    ) : ReaderEvent()
+
+    /** Export all notes of the book as a shared Markdown file. */
+    data object OnExportNotes : ReaderEvent()
+
+    data object OnShowBookmarksBottomSheet : ReaderEvent()
+
+    /** Save the current reading position as a bookmark. */
+    data object OnAddBookmark : ReaderEvent()
+
+    data class OnDeleteBookmark(
+        val bookmarkId: Int
+    ) : ReaderEvent()
+
+    /** Jump to the bookmark location and close the sheet. */
+    data class OnSelectBookmark(
+        val bookmark: Bookmark
+    ) : ReaderEvent()
+
+    data object OnShowTextSearch : ReaderEvent()
+
+    data object OnDismissTextSearch : ReaderEvent()
+
+    data class OnTextSearchQueryChanged(
+        val query: String
+    ) : ReaderEvent()
+
+    data class OnSelectTextSearchResult(
+        val listItemIndex: Int
     ) : ReaderEvent()
 
     data object OnShowSettingsBottomSheet : ReaderEvent()

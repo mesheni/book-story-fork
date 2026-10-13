@@ -92,6 +92,7 @@ class BookRepositoryImpl @Inject constructor(
                 if (it == 0) throw Exception("Could not delete book in database.")
                 database.pdfPageTextDao.deletePagesForBook(book.id)
                 database.noteDao.deleteNotesForBook(book.id)
+                database.bookmarkDao.deleteBookmarksForBook(book.id)
             }
         }
     }

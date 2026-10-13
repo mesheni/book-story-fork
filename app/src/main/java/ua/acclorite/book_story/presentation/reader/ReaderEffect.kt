@@ -6,6 +6,7 @@
 
 package ua.acclorite.book_story.presentation.reader
 
+import android.net.Uri
 import androidx.compose.runtime.Immutable
 
 @Immutable
@@ -15,6 +16,11 @@ sealed class ReaderEffect {
     ) : ReaderEffect()
 
     data object OnResetBrightness : ReaderEffect()
+
+    /** Share the exported notes file (FileProvider uri). */
+    data class OnShareNotes(
+        val uri: Uri
+    ) : ReaderEffect()
 
     data class OnOpenTranslator(
         val textToTranslate: String,

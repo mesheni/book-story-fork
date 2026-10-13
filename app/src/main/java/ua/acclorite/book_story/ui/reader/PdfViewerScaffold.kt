@@ -37,6 +37,7 @@ fun PdfViewerScaffold(
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
     showPdfModeDialog: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
     showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
+    showBookmarksBottomSheet: (ReaderEvent.OnShowBookmarksBottomSheet) -> Unit,
     onPageChanged: (ReaderEvent.OnPdfPageChanged) -> Unit,
     onViewerInitialized: (ReaderEvent.OnPdfViewerInitialized) -> Unit,
     showPdfSearch: Boolean,
@@ -72,6 +73,7 @@ fun PdfViewerScaffold(
                     navigateBack = navigateBack,
                     showPdfModeDialog = showPdfModeDialog,
                     showNotesBottomSheet = showNotesBottomSheet,
+                    showBookmarksBottomSheet = showBookmarksBottomSheet,
                     showPdfSearch = showPdfSearchAction
                 )
             }

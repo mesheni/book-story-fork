@@ -11,11 +11,13 @@ import androidx.compose.runtime.Immutable
 import ua.acclorite.book_story.core.BottomSheet
 import ua.acclorite.book_story.core.Drawer
 import ua.acclorite.book_story.core.ui.UIText
+import ua.acclorite.book_story.domain.model.bookmark.Bookmark
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.domain.model.reader.PdfSearchResult
+import ua.acclorite.book_story.domain.model.reader.TextSearchResult
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
 
 @Immutable
@@ -49,6 +51,13 @@ data class ReaderState(
 
     val notes: List<Note> = emptyList(),
     val editingNote: Note? = null,
+
+    val bookmarks: List<Bookmark> = emptyList(),
+
+    val showTextSearch: Boolean = false,
+    val textSearchQuery: String = "",
+    val textSearchResults: List<TextSearchResult> = emptyList(),
+    val isTextSearching: Boolean = false,
 
     val bottomSheet: BottomSheet? = null,
     val drawer: Drawer? = null

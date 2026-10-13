@@ -9,6 +9,7 @@ package ua.acclorite.book_story.ui.reader
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Notes
+import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.filled.TextSnippet
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +35,7 @@ fun PdfViewerTopBar(
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
     showPdfModeDialog: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
     showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
+    showBookmarksBottomSheet: (ReaderEvent.OnShowBookmarksBottomSheet) -> Unit,
     showPdfSearch: (ReaderEvent.OnShowPdfSearch) -> Unit
 ) {
     TopAppBar(
@@ -69,6 +71,17 @@ fun PdfViewerTopBar(
                     imageVector = Icons.Default.Search,
                     contentDescription = androidx.compose.ui.res.stringResource(
                         ua.acclorite.book_story.R.string.search_pdf
+                    )
+                )
+            }
+            IconButton(
+                enabled = !lockMenu,
+                onClick = { showBookmarksBottomSheet(ReaderEvent.OnShowBookmarksBottomSheet) }
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.BookmarkAdd,
+                    contentDescription = androidx.compose.ui.res.stringResource(
+                        ua.acclorite.book_story.R.string.bookmarks
                     )
                 )
             }

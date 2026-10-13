@@ -53,6 +53,26 @@ fun ReaderEffects(
                     activity.setBrightness(brightness = null)
                 }
 
+                is ReaderEffect.OnShareNotes -> {
+                    val shareIntent = Intent()
+
+                    shareIntent.action = Intent.ACTION_SEND
+                    shareIntent.type = "text/markdown"
+                    shareIntent.putExtra(Intent.EXTRA_STREAM, effect.uri)
+                    shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                    shareIntent.launchActivity(
+                        activity = activity,
+                        createChooser = true,
+                        success = {
+                            return@collect
+                        }
+                    )
+
+                    activity.getString(R.string.error_no_share_app)
+                        .showToast(context = activity, longToast = false)
+                }
+
                 is ReaderEffect.OnOpenTranslator -> {
                     val translatorIntent = Intent()
                     val browserIntent = Intent()

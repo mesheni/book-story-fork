@@ -166,4 +166,7 @@ dependencies {
 
     // Json
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+
+    // Charset detection (TXT files in windows-1251 etc.)
+    implementation("com.github.albfernandez:juniversalchardet:2.5.1")
 }

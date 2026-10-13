@@ -16,7 +16,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -54,6 +56,8 @@ fun ReaderTopBar(
     switchColorPreset: (SettingsEvent.OnSwitchColorPreset) -> Unit,
     showSettingsBottomSheet: (ReaderEvent.OnShowSettingsBottomSheet) -> Unit,
     showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
+    showBookmarksBottomSheet: (ReaderEvent.OnShowBookmarksBottomSheet) -> Unit,
+    showTextSearch: (ReaderEvent.OnShowTextSearch) -> Unit,
     showChaptersDrawer: (ReaderEvent.OnShowChaptersDrawer) -> Unit,
     navigateToBookInfo: (ReaderEvent.OnNavigateToBookInfo) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
@@ -140,6 +144,26 @@ fun ReaderTopBar(
                     ) {
                         showChaptersDrawer(ReaderEvent.OnShowChaptersDrawer)
                     }
+                }
+
+                if (!isLoading) {
+                    IconButton(
+                        icon = Icons.Default.Search,
+                        contentDescription = R.string.search_book_title,
+                        disableOnClick = false,
+                        enabled = !lockMenu
+                    ) {
+                        showTextSearch(ReaderEvent.OnShowTextSearch)
+                    }
+                }
+
+                IconButton(
+                    icon = Icons.Outlined.BookmarkAdd,
+                    contentDescription = R.string.bookmarks,
+                    disableOnClick = false,
+                    enabled = !lockMenu
+                ) {
+                    showBookmarksBottomSheet(ReaderEvent.OnShowBookmarksBottomSheet)
                 }
 
                 IconButton(

@@ -8,6 +8,7 @@ package ua.acclorite.book_story.ui.reader
 
 import androidx.compose.runtime.Composable
 import ua.acclorite.book_story.core.BottomSheet
+import ua.acclorite.book_story.domain.model.bookmark.Bookmark
 import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
@@ -17,10 +18,15 @@ import ua.acclorite.book_story.presentation.reader.ReaderScreen
 fun ReaderBottomSheet(
     bottomSheet: BottomSheet?,
     notes: List<Note>,
+    bookmarks: List<Bookmark>,
     text: List<ReaderText>,
     menuVisibility: (ReaderEvent.OnMenuVisibility) -> Unit,
     selectNote: (ReaderEvent.OnSelectNote) -> Unit,
     editNote: (ReaderEvent.OnEditNote) -> Unit,
+    exportNotes: (ReaderEvent.OnExportNotes) -> Unit,
+    addBookmark: (ReaderEvent.OnAddBookmark) -> Unit,
+    selectBookmark: (ReaderEvent.OnSelectBookmark) -> Unit,
+    deleteBookmark: (ReaderEvent.OnDeleteBookmark) -> Unit,
     dismissBottomSheet: (ReaderEvent.OnDismissBottomSheet) -> Unit
 ) {
     when (bottomSheet) {
@@ -37,6 +43,17 @@ fun ReaderBottomSheet(
                 text = text,
                 selectNote = selectNote,
                 editNote = editNote,
+                exportNotes = exportNotes,
+                dismissBottomSheet = dismissBottomSheet
+            )
+        }
+
+        ReaderScreen.BOOKMARKS_BOTTOM_SHEET -> {
+            BookmarksBottomSheet(
+                bookmarks = bookmarks,
+                addBookmark = addBookmark,
+                selectBookmark = selectBookmark,
+                deleteBookmark = deleteBookmark,
                 dismissBottomSheet = dismissBottomSheet
             )
         }

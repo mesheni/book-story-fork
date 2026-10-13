@@ -67,6 +67,7 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
         const val CHAPTERS_DRAWER = "chapters_drawer"
         const val SETTINGS_BOTTOM_SHEET = "settings_bottom_sheet"
         const val NOTES_BOTTOM_SHEET = "notes_bottom_sheet"
+        const val BOOKMARKS_BOTTOM_SHEET = "bookmarks_bottom_sheet"
     }
 
     @OptIn(ExperimentalLayoutApi::class)
@@ -452,6 +453,11 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
             pdfSearchError = state.value.pdfSearchError,
             notes = state.value.notes,
             editingNote = state.value.editingNote,
+            bookmarks = state.value.bookmarks,
+            showTextSearch = state.value.showTextSearch,
+            textSearchQuery = state.value.textSearchQuery,
+            textSearchResults = state.value.textSearchResults,
+            isTextSearching = state.value.isTextSearching,
             loadPdfWordBoxes = screenModel::getPdfWordBoxes,
             selectPdfMode = screenModel::onEvent,
             dismissPdfModeDialog = screenModel::onEvent,
@@ -521,6 +527,15 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
             dismissNoteEditor = screenModel::onEvent,
             selectNote = screenModel::onEvent,
             showNotesBottomSheet = screenModel::onEvent,
+            exportNotes = screenModel::onEvent,
+            addBookmark = screenModel::onEvent,
+            selectBookmark = screenModel::onEvent,
+            deleteBookmark = screenModel::onEvent,
+            showBookmarksBottomSheet = screenModel::onEvent,
+            showTextSearchAction = screenModel::onEvent,
+            dismissTextSearch = screenModel::onEvent,
+            textSearchQueryChanged = screenModel::onEvent,
+            selectTextSearchResult = screenModel::onEvent,
             scrollToChapter = screenModel::onEvent,
             showSettingsBottomSheet = screenModel::onEvent,
             dismissBottomSheet = screenModel::onEvent,

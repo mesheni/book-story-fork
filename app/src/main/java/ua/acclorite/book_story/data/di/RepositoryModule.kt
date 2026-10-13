@@ -14,6 +14,8 @@ import ua.acclorite.book_story.data.local.data_store.DataStore
 import ua.acclorite.book_story.data.local.data_store.DataStoreImpl
 import ua.acclorite.book_story.data.mapper.book.BookMapper
 import ua.acclorite.book_story.data.mapper.book.BookMapperImpl
+import ua.acclorite.book_story.data.mapper.bookmark.BookmarkMapper
+import ua.acclorite.book_story.data.mapper.bookmark.BookmarkMapperImpl
 import ua.acclorite.book_story.data.mapper.category.CategoryMapper
 import ua.acclorite.book_story.data.mapper.category.CategoryMapperImpl
 import ua.acclorite.book_story.data.mapper.color_preset.ColorPresetMapper
@@ -31,6 +33,7 @@ import ua.acclorite.book_story.data.parser.file.FileParserImpl
 import ua.acclorite.book_story.data.parser.text.TextParser
 import ua.acclorite.book_story.data.parser.text.TextParserImpl
 import ua.acclorite.book_story.data.repository.BookRepositoryImpl
+import ua.acclorite.book_story.data.repository.BookmarkRepositoryImpl
 import ua.acclorite.book_story.data.repository.CategoryRepositoryImpl
 import ua.acclorite.book_story.data.repository.ColorPresetRepositoryImpl
 import ua.acclorite.book_story.data.repository.FileSystemRepositoryImpl
@@ -41,6 +44,7 @@ import ua.acclorite.book_story.data.repository.PdfPageTextRepositoryImpl
 import ua.acclorite.book_story.data.repository.PdfWordBoxRepositoryImpl
 import ua.acclorite.book_story.data.repository.ReadingStatisticsRepositoryImpl
 import ua.acclorite.book_story.domain.repository.BookRepository
+import ua.acclorite.book_story.domain.repository.BookmarkRepository
 import ua.acclorite.book_story.domain.repository.CategoryRepository
 import ua.acclorite.book_story.domain.repository.ColorPresetRepository
 import ua.acclorite.book_story.domain.repository.FileSystemRepository
@@ -90,6 +94,12 @@ abstract class RepositoryModule {
     abstract fun bindNoteRepository(
         noteRepositoryImpl: NoteRepositoryImpl
     ): NoteRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBookmarkRepository(
+        bookmarkRepositoryImpl: BookmarkRepositoryImpl
+    ): BookmarkRepository
 
     @Binds
     @Singleton
@@ -150,6 +160,12 @@ abstract class RepositoryModule {
     abstract fun bindNoteMapper(
         noteMapperImpl: NoteMapperImpl
     ): NoteMapper
+
+    @Binds
+    @Singleton
+    abstract fun bindBookmarkMapper(
+        bookmarkMapperImpl: BookmarkMapperImpl
+    ): BookmarkMapper
 
     @Binds
     @Singleton
