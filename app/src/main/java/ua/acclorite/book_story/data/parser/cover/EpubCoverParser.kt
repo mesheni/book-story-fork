@@ -14,8 +14,7 @@ import org.jsoup.parser.Parser
 import ua.acclorite.book_story.core.CoverImage
 import ua.acclorite.book_story.core.log.logE
 import ua.acclorite.book_story.data.model.file.CachedFile
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
+import ua.acclorite.book_story.data.parser.document.decodeHref
 import java.util.zip.ZipFile
 import javax.inject.Inject
 
@@ -48,8 +47,10 @@ class EpubCoverParser @Inject constructor() : CoverParser {
                         .let { coverId ->
                             if (coverId.isNotBlank()) {
                                 document
-                                    .select("manifest > item[id=$coverId]")
-                                    .attr("href")
+                                    .select("manifest > item")
+                                    .firstOrNull { it.attr("id") == coverId }
+                                    ?.attr("href")
+                                    .orEmpty()
                                     .also { src ->
                                         if (src.isBlank()) return@also
                                         return@let src
@@ -62,24 +63,31 @@ class EpubCoverParser @Inject constructor() : CoverParser {
                                 ?.attr("href")
                                 ?.also { src -> if (src.isBlank()) return@let null }
                         }
-                        ?.let { src -> URLDecoder.decode(src, StandardCharsets.UTF_8.name()) }
+                        ?.decodeHref()
                         ?: return@use
 
-                    zip.entries().asSequence().first { entry ->
-                        if (entry.name.endsWith(coverImagePath)) {
-                            val imageBytes = zip.getInputStream(entry).readBytes()
-                            coverImage = BitmapFactory.decodeByteArray(
-                                imageBytes, 0, imageBytes.size
-                            )
-                            return@first true
-                        } else return@first false
-                    }
+                    // href is relative to the OPF and may contain "../", so match
+                    // the full path first and fall back to the file name
+                    val coverFileName = coverImagePath.substringAfterLast('/')
+                    val entries = zip.entries().toList()
+                    val coverEntry = entries.firstOrNull { it.name.endsWith(coverImagePath) }
+                        ?: entries.firstOrNull {
+                            it.name.substringAfterLast('/').equals(coverFileName, ignoreCase = true)
+                        }
+                        ?: return@use
+
+                    val imageBytes = zip.getInputStream(coverEntry).readBytes()
+                    coverImage = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
                 }
             }
             coverImage
         } catch (e: Exception) {
             logE(TAG, "Could not parse cover image with message: ${e.message}.")
             null
+        } finally {
+            // The cover is the last consumer of this CachedFile's cacheDir copy
+            // (after EpubFileParser on import), so drop the copy here
+            runCatching { cachedFile.rawFile?.delete() }
         }
     }
 }

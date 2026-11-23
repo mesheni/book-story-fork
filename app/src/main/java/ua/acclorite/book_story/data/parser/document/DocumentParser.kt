@@ -22,6 +22,40 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import javax.inject.Inject
 
+/**
+ * Non-void HTML elements that XHTML documents commonly write as self-closing (`<title/>`).
+ * Void elements (img, br, hr, ...) and SVG/MathML tags are intentionally excluded.
+ */
+private val selfClosingNonVoidTag = Regex(
+    "<(title|p|a|span|div|script|style|i|b|u|s|em|strong|small|big|sup|sub|font|" +
+            "h[1-6]|section|article|aside|header|footer|nav|blockquote|pre|code|" +
+            "ul|ol|li|dl|dt|dd|table|thead|tbody|tr|td|th|textarea|iframe|noscript)" +
+            "(\\s[^<>]*?)?\\s*/>",
+    RegexOption.IGNORE_CASE
+)
+
+/**
+ * The HTML parser ignores the self-closing flag of non-void elements, so XHTML `<title/>`
+ * swallows the whole document (RCDATA) and `<p/>`/`<a/>` wrap the following content.
+ * Expands such tags into explicit open/close pairs before HTML parsing.
+ */
+fun String.expandSelfClosingTags(): String =
+    replace(selfClosingNonVoidTag) { match ->
+        val tag = match.groupValues[1]
+        "<$tag${match.groupValues[2]}></$tag>"
+    }
+
+/**
+ * Percent-decodes an EPUB href. Unlike raw [URLDecoder], keeps literal '+' (hrefs are URIs,
+ * not form data) and returns the input as-is for malformed escapes (e.g. "100%.xhtml")
+ * instead of throwing.
+ */
+fun String.decodeHref(): String = try {
+    URLDecoder.decode(replace("+", "%2B"), StandardCharsets.UTF_8.name())
+} catch (_: IllegalArgumentException) {
+    this
+}
+
 class DocumentParser @Inject constructor(
     private val markdownParser: MarkdownParser
 ) {
@@ -57,8 +91,11 @@ class DocumentParser @Inject constructor(
                     element.html(element.html().replace(Regex("\\n+"), ""))
                 }
 
-                // Remove <head>'s title
-                select("title").remove()
+                // Remove <head>'s title (HTML only: in FB2 <title> is a section
+                // heading inside <body> and must stay in the text)
+                if (document.outputSettings().syntax() != Document.OutputSettings.Syntax.xml) {
+                    select("title").remove()
+                }
 
                 // Markdown
                 select("hr").append("\n---\n")
@@ -86,7 +123,7 @@ class DocumentParser @Inject constructor(
                         .trim()
                         .substringAfterLast(File.separator)
                         .lowercase()
-                        .let { src -> URLDecoder.decode(src, StandardCharsets.UTF_8.name()) }
+                        .decodeHref()
                         .takeIf {
                             it.containsVisibleText() && imageEntries?.any { image ->
                                 it == image.name.substringAfterLast(File.separator).lowercase()
@@ -106,7 +143,7 @@ class DocumentParser @Inject constructor(
                         .trim()
                         .substringAfterLast(File.separator)
                         .lowercase()
-                        .let { src -> URLDecoder.decode(src, StandardCharsets.UTF_8.name()) }
+                        .decodeHref()
                         .takeIf {
                             it.containsVisibleText() && imageEntries?.any { image ->
                                 it == image.name.substringAfterLast(File.separator).lowercase()
@@ -116,6 +153,17 @@ class DocumentParser @Inject constructor(
                     val alt = "Image"
 
                     element.append("\n[[$src|$alt]]\n")
+                }
+
+                // Line breaks for block elements other than <p> (wholeText() ignores
+                // element boundaries): <br> in poetry, headings/divs/list items in
+                // documents without source formatting would otherwise merge with
+                // the next paragraph. Extra blank lines are skipped below.
+                select("br").forEach { it.after("\n") }
+                // (v/subtitle/text-author: FB2 verse lines and captions)
+                select("h1, h2, h3, h4, h5, h6, div, li, blockquote, tr, v, subtitle, text-author").forEach {
+                    it.prepend("\n")
+                    it.append("\n")
                 }
             }.wholeText().lines().forEach { line ->
                 yield()

@@ -25,10 +25,10 @@ import ua.acclorite.book_story.core.log.logI
 import ua.acclorite.book_story.core.log.logW
 import ua.acclorite.book_story.data.model.file.CachedFile
 import ua.acclorite.book_story.data.parser.document.DocumentParser
+import ua.acclorite.book_story.data.parser.document.decodeHref
+import ua.acclorite.book_story.data.parser.document.expandSelfClosingTags
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import java.io.File
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -98,6 +98,10 @@ class EpubTextParser @Inject constructor(
         } catch (e: Exception) {
             logE(TAG, "Could not parse text with message: ${e.message}.")
             emptyList()
+        } finally {
+            // rawFile is a full copy of the book in cacheDir, created for this
+            // CachedFile only; images are already decoded at this point
+            runCatching { cachedFile.rawFile?.delete() }
         }
     }
 
@@ -167,10 +171,10 @@ class EpubTextParser @Inject constructor(
     ) {
         // Getting all text
         val content = withContext(Dispatchers.IO) {
-            zip.getInputStream(entry)
-        }.bufferedReader().use { it.readText() }
+            zip.getInputStream(entry).use { it.readBytes() }
+        }.decodeXmlText()
         var readerText = documentParser.parseDocument(
-            document = Jsoup.parse(content, Parser.htmlParser()),
+            document = Jsoup.parse(content.expandSelfClosingTags(), Parser.htmlParser()),
             zipFile = zip,
             imageEntries = imageEntries,
             includeChapter = false
@@ -240,7 +244,7 @@ class EpubTextParser @Inject constructor(
 
             val source = navPoint.selectFirst("content")?.attr("src")?.trim()
                 .also { src -> if (src.isNullOrBlank()) return@forEach }
-                .let { src -> URLDecoder.decode(src, StandardCharsets.UTF_8.name()) }
+                .let { src -> src.orEmpty().decodeHref() }
                 .let { src -> src.toUri().path ?: src }
                 .substringAfterLast(File.separator)
 
@@ -250,7 +254,7 @@ class EpubTextParser @Inject constructor(
 
                     val parentSource = parent.selectFirst("content")?.attr("src")?.trim()
                         .also { src -> if (src.isNullOrBlank()) return@forEach }
-                        .let { src -> URLDecoder.decode(src, StandardCharsets.UTF_8.name()) }
+                        .let { src -> src.orEmpty().decodeHref() }
                         .let { src -> src.toUri().path ?: src }
                         .substringAfterLast(File.separator)
 
@@ -300,29 +304,26 @@ class EpubTextParser @Inject constructor(
             }
             val document = Jsoup.parse(opfContent, Parser.xmlParser())
             val zipEntries = entries().toList()
+            val entriesByPath = zipEntries.associateBy { it.name.lowercase() }
+            val opfDir = opfEntry.name.substringBeforeLast('/', "")
 
             val manifestItems = document.select("manifest > item").associate {
-                it.attr("id").to(
-                    it.attr("href").let { src ->
-                        URLDecoder.decode(src, StandardCharsets.UTF_8.name())
-                    }
-                )
+                it.attr("id") to it.attr("href").substringBefore('#').decodeHref()
             }
 
             document.select("spine > itemref").mapNotNull { itemRef ->
                 val spineId = itemRef.attr("idref")
-                val chapterSource = manifestItems[spineId]
-                    .let { src ->
-                        if (src.isNullOrBlank()) return@mapNotNull null
-                        URLDecoder.decode(
-                            src.substringAfterLast(File.separator).lowercase(),
-                            StandardCharsets.UTF_8.name()
-                        )
-                    }
+                val href = manifestItems[spineId]
+                if (href.isNullOrBlank()) return@mapNotNull null
 
-                zipEntries.find { entry ->
-                    entry.name.substringAfterLast(File.separator).lowercase() == chapterSource
-                }
+                // Manifest hrefs are relative to the OPF; resolve the full path so
+                // equally named files in different folders don't collide
+                entriesByPath[resolveZipPath(opfDir, href).lowercase()]
+                    ?: href.substringAfterLast('/').lowercase().let { fileName ->
+                        zipEntries.find { entry ->
+                            entry.name.substringAfterLast('/').lowercase() == fileName
+                        }
+                    }
             }.also { entries ->
                 if (entries.isEmpty()) return@let
 
@@ -340,4 +341,34 @@ class EpubTextParser @Inject constructor(
             it.name.filter { char -> char.isDigit() }.toBigIntegerOrNull()
         }
     }
+}
+
+private val xmlEncodingRegex = Regex("""^\s*<\?xml[^>]*encoding\s*=\s*["']([\w.:-]+)["']""")
+
+/**
+ * Decodes XHTML bytes using the charset from the XML declaration (UTF-8 by default),
+ * so legacy windows-1251 EPUBs are not garbled.
+ */
+internal fun ByteArray.decodeXmlText(): String {
+    val head = String(this, 0, minOf(size, 256), Charsets.ISO_8859_1)
+    val charset = xmlEncodingRegex.find(head)?.groupValues?.get(1)
+        ?.let { name -> runCatching { java.nio.charset.Charset.forName(name) }.getOrNull() }
+        ?: Charsets.UTF_8
+    return String(this, charset).removePrefix(Char(0xFEFF).toString())
+}
+
+/**
+ * Resolves [href] (relative to [baseDir]) into a ZIP entry path, collapsing "." and "..".
+ */
+internal fun resolveZipPath(baseDir: String, href: String): String {
+    val segments = ArrayDeque<String>()
+    val full = if (href.startsWith("/")) href.drop(1) else "$baseDir/$href"
+    full.split('/').forEach { segment ->
+        when (segment) {
+            "", "." -> Unit
+            ".." -> segments.removeLastOrNull()
+            else -> segments.addLast(segment)
+        }
+    }
+    return segments.joinToString("/")
 }
