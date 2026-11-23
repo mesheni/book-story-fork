@@ -6,9 +6,12 @@
 
 package ua.acclorite.book_story.ui.main
 
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.flow.Flow
+import ua.acclorite.book_story.R
 import ua.acclorite.book_story.presentation.main.ExternalPdfEffect
 import ua.acclorite.book_story.presentation.reader.ReaderScreen
 import ua.acclorite.book_story.ui.navigator.LocalNavigator
@@ -16,12 +19,14 @@ import ua.acclorite.book_story.ui.navigator.LocalNavigator
 @Composable
 fun ExternalPdfEffects(effects: Flow<ExternalPdfEffect>) {
     val navigator = LocalNavigator.current
+    val context = LocalContext.current
     LaunchedEffect(effects, navigator) {
         effects.collect { effect ->
             when (effect) {
                 is ExternalPdfEffect.OpenBook -> {
                     navigator.push(ReaderScreen(effect.bookId))
                 }
+                ExternalPdfEffect.OpenError -> Toast.makeText(context, R.string.pdf_external_open_error, Toast.LENGTH_LONG).show()
             }
         }
     }

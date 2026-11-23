@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import ua.acclorite.book_story.ui.settings.general.components.AppLanguageOption
 import ua.acclorite.book_story.ui.settings.general.components.DoublePressExitOption
 import ua.acclorite.book_story.ui.settings.general.components.ReadingStatisticsOption
+import ua.acclorite.book_story.ui.settings.general.components.BackupOption
 
 fun LazyListScope.GeneralSettingsCategory(
     topPadding: Dp = 16.dp,
@@ -38,6 +39,8 @@ fun LazyListScope.GeneralSettingsCategory(
     item {
         ReadingStatisticsOption()
     }
+
+    item { BackupOption() }
 
     item {
         Spacer(modifier = Modifier.height(bottomPadding))

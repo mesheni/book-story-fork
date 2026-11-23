@@ -70,6 +70,12 @@ class SettingsModel @Inject constructor(
 
     private var colorPresetJob: Job? = null
 
+    suspend fun refreshAfterRestore() {
+        val presets = getColorPresetsUseCase()
+        val categories = getCategoriesUseCase()
+        _state.update { it.copy(colorPresets = presets, selectedColorPreset = presets.getSelectedColorPreset(), categories = categories) }
+    }
+
     init {
         viewModelScope.launch {
             var colorPresets = getColorPresetsUseCase()

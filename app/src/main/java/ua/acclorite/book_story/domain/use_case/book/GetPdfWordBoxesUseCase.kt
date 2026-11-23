@@ -15,12 +15,13 @@ class GetPdfWordBoxesUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         bookId: Int,
+        sessionId: String,
         pageIndex: Int
-    ): Result<List<PdfWord>> = repository.getWordBoxes(bookId, pageIndex)
+    ): Result<List<PdfWord>> = repository.getWordBoxes(bookId, sessionId, pageIndex)
 }
 
 class ClosePdfWordBoxesUseCase @Inject constructor(
     private val repository: PdfWordBoxRepository
 ) {
-    suspend operator fun invoke(bookId: Int) = repository.close(bookId)
+    suspend operator fun invoke(sessionId: String) = repository.close(sessionId)
 }

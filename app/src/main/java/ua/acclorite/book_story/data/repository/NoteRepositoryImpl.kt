@@ -24,6 +24,10 @@ class NoteRepositoryImpl @Inject constructor(
     private val noteMapper: NoteMapper
 ) : NoteRepository {
 
+    override fun getAllNotes(): Flow<List<Note>> = database.noteDao.getAllNotes()
+        .map { entities -> entities.map { noteMapper.toNote(it) } }
+        .flowOn(Dispatchers.IO)
+
     override fun getNotesForBook(bookId: Int): Flow<List<Note>> {
         return database.noteDao.getNotesForBook(bookId)
             .map { entities -> entities.map { noteMapper.toNote(it) } }

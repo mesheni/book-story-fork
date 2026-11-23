@@ -23,6 +23,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +40,7 @@ import ua.acclorite.book_story.R
 import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
+import ua.acclorite.book_story.presentation.reader.model.NoteAnchorMatcher
 import ua.acclorite.book_story.presentation.reader.model.ReaderFontThickness
 import ua.acclorite.book_story.presentation.reader.model.ReaderHorizontalGesture
 import ua.acclorite.book_story.presentation.reader.model.ReaderTextAlignment
@@ -49,10 +53,15 @@ import ua.acclorite.book_story.ui.common.helpers.noRippleClickable
 import ua.acclorite.book_story.ui.common.helpers.showToast
 import ua.acclorite.book_story.ui.reader.model.FontWithName
 import ua.acclorite.book_story.ui.theme.model.HorizontalAlignment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 @Composable
 fun ReaderLayout(
     text: List<ReaderText>,
+    isPdfText: Boolean,
     listState: LazyListState,
     contentPadding: PaddingValues,
     verticalPadding: Dp,
@@ -103,11 +112,27 @@ fun ReaderLayout(
     val activity = LocalActivity.current
 
     // Char ranges to highlight per LazyColumn item, derived from anchored notes.
-    val noteHighlights = remember(notes) {
-        notes.flatMap { note ->
+    // Regular books: stored anchors are exact, compute synchronously (no flicker).
+    // PDF text: anchors are re-resolved in the background; the previous highlights
+    // stay visible until the new ones are ready instead of resetting to empty.
+    val directHighlights = remember(notes, isPdfText) {
+        if (isPdfText) null else notes.flatMap { note ->
             note.segments.map { segment -> segment.listItemIndex to NoteHighlight(segment.start, segment.end, note.color) }
         }.groupBy({ it.first }, { it.second })
     }
+    val resolvedPdfHighlights by produceState<Map<Int, List<NoteHighlight>>>(emptyMap(), notes, text, isPdfText) {
+        if (!isPdfText) return@produceState
+        value = withContext(Dispatchers.Default) {
+            val context = currentCoroutineContext()
+            val resolved = NoteAnchorMatcher.resolveAll(notes, text) { context.ensureActive() }
+            notes.flatMap { note ->
+                resolved[note.id].orEmpty().map { segment ->
+                    segment.listItemIndex to NoteHighlight(segment.start, segment.end, note.color)
+                }
+            }.groupBy({ it.first }, { it.second })
+        }
+    }
+    val noteHighlights = directHighlights ?: resolvedPdfHighlights
 
     SelectionContainer(
         onCopyRequested = {

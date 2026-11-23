@@ -5,6 +5,7 @@
   -->
 
 <resources>
+    <string name="pdf_external_open_error">Не удалось открыть или сохранить PDF. Попробуйте ещё раз.</string>
     <!-- Основные строки -->
     <string name="app_name" translatable="false">Book\'s Story</string>
     <string name="default_string">По умолчанию</string>
@@ -344,6 +345,39 @@
 
     <!-- BookInfo -->
     <string name="start_reading">Начать</string>
+    <string name="library_notes">Все заметки</string>
+    <string name="backup_title">Резервная копия</string>
+    <string name="backup_description">Сохранить данные библиотеки и настройки; при необходимости включить файлы книг.</string>
+    <string name="backup_include_books">Включить файлы книг</string>
+    <string name="backup_without_books">Сохранить данные библиотеки и настройки. Файлы книг не включены.</string>
+    <string name="backup_export">Сохранить копию</string>
+    <string name="backup_working">Сохранение…</string>
+    <string name="backup_export_success">Резервная копия сохранена</string>
+    <string name="backup_export_error">Не удалось сохранить резервную копию</string>
+    <string name="backup_import">Восстановить копию</string>
+    <string name="backup_import_confirm">Заменить текущие данные библиотеки и настройки данными из копии? Книг: %1$d. Файлов в архиве: %2$d. Доступ к книгам без файлов может потребоваться настроить заново.</string>
+    <string name="backup_import_success">Резервная копия восстановлена</string>
+    <string name="backup_import_error">Не удалось восстановить резервную копию</string>
+    <string name="reading_time_option">Оставшееся время чтения</string>
+    <string name="auto_reading_pace">Определять скорость автоматически</string>
+    <string name="auto_reading_pace_desc">Пока данных недостаточно, используется выбранная скорость</string>
+    <string name="reading_time_option_desc">Показывать примерное время до конца главы или книги</string>
+    <string name="reading_speed_option">Скорость чтения</string>
+    <string name="words_per_minute_unit">слов/мин</string>
+    <string name="reading_time_chapter">До конца главы ≈ %1$d мин</string>
+    <string name="reading_time_book">До конца книги ≈ %1$d мин</string>
+    <string name="pdf_thumbnails">Миниатюры страниц</string>
+    <string name="pdf_outline">Оглавление</string>
+    <string name="pdf_outline_loading">Загрузка оглавления…</string>
+    <string name="pdf_outline_empty">В документе нет оглавления.</string>
+    <string name="pdf_outline_error">Не удалось загрузить оглавление.</string>
+    <string name="pdf_thumbnail_unavailable">Нет предпросмотра</string>
+    <string name="library_notes_all_books">Все книги</string>
+    <string name="library_notes_color">Цвет</string>
+    <string name="library_notes_all_colors">Все цвета</string>
+    <string name="library_notes_color_number">Цвет %1$d</string>
+    <string name="library_notes_empty">Заметки не найдены</string>
+    <string name="recent_reading">Продолжить чтение</string>
     <string name="continue_reading_query">Продолжить с %1$s</string>
     <string name="file_details">Детали файла</string>
     <string name="file_path">Путь</string>
@@ -425,6 +459,12 @@
     <string name="pdf_text_progress">Обработка документа… %1$d%%</string>
     <string name="pdf_search_page_number">Страница %1$d</string>
     <string name="pdf_viewer_error">Не удалось открыть этот PDF</string>
+    <string name="pdf_go_to_page">Перейти к странице</string>
+    <string name="pdf_page_range">Страница (1–%1$d)</string>
+    <string name="pdf_retry">Повторить</string>
+    <string name="pdf_page_error">Не удалось отобразить страницу %1$d</string>
+    <string name="pdf_text_unavailable">Не удалось извлечь текст. Возможно, документ содержит только отсканированные изображения.</string>
+    <string name="pdf_anchor_unavailable">Исходное место больше недоступно</string>
     <string name="clear_selected_items_content_desc">Очистить выбранные элементы</string>
     <string name="add_files_content_desc">Добавить файлы</string>
     <string name="select_all_files_content_desc">Выбрать все файлы</string>

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MoveUp
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +33,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -40,9 +45,14 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ua.acclorite.book_story.R
 import ua.acclorite.book_story.domain.model.library.Category
 import ua.acclorite.book_story.presentation.library.LibraryEvent
+import ua.acclorite.book_story.presentation.library.LibraryNotesModel
+import ua.acclorite.book_story.presentation.reader.ReaderScreen
+import ua.acclorite.book_story.presentation.history.HistoryScreen
 import ua.acclorite.book_story.presentation.library.model.SelectableBook
 import ua.acclorite.book_story.ui.common.components.common.AnimatedVisibility
 import ua.acclorite.book_story.ui.common.components.common.IconButton
@@ -51,6 +61,7 @@ import ua.acclorite.book_story.ui.common.components.common.StyledText
 import ua.acclorite.book_story.ui.common.components.top_bar.TopAppBar
 import ua.acclorite.book_story.ui.common.components.top_bar.TopAppBarData
 import ua.acclorite.book_story.ui.navigator.NavigatorIconButton
+import ua.acclorite.book_story.ui.navigator.LocalNavigator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +90,17 @@ fun LibraryTopBar(
     showDeleteDialog: (LibraryEvent.OnShowDeleteDialog) -> Unit,
     showFilterBottomSheet: (LibraryEvent.OnShowFilterBottomSheet) -> Unit
 ) {
+    var showNotes by rememberSaveable { mutableStateOf(false) }
+    val notesModel = hiltViewModel<LibraryNotesModel>()
+    val allNotes by notesModel.notes.collectAsStateWithLifecycle()
+    val navigator = LocalNavigator.current
+    if (showNotes) {
+        LibraryNotesDialog(allNotes, books.map { it.data }, dismiss = { showNotes = false }) { note ->
+            showNotes = false
+            HistoryScreen.insertHistoryChannel.trySend(note.bookId)
+            navigator.push(ReaderScreen(note.bookId, note.id))
+        }
+    }
     val defaultCategory = stringResource(id = R.string.default_tab)
     val categoriesWithBooks = remember(
         books,
@@ -157,6 +179,11 @@ fun LibraryTopBar(
                     }
                 },
                 contentActions = {
+                    IconButton(
+                        icon = Icons.AutoMirrored.Filled.Notes,
+                        contentDescription = R.string.library_notes,
+                        disableOnClick = false,
+                    ) { showNotes = true }
                     IconButton(
                         icon = Icons.Default.Search,
                         contentDescription = R.string.search_content_desc,

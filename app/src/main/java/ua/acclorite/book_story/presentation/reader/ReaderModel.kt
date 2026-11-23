@@ -16,6 +16,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -46,6 +48,7 @@ import ua.acclorite.book_story.domain.use_case.book.GetTextUseCase
 import ua.acclorite.book_story.domain.use_case.book.SearchPdfPagesUseCase
 import ua.acclorite.book_story.domain.use_case.book.SearchTextUseCase
 import ua.acclorite.book_story.domain.use_case.book.UpdateBookUseCase
+import ua.acclorite.book_story.domain.use_case.book.ReadingPaceTracker
 import ua.acclorite.book_story.domain.use_case.bookmark.AddBookmarkUseCase
 import ua.acclorite.book_story.domain.use_case.bookmark.DeleteBookmarkUseCase
 import ua.acclorite.book_story.domain.use_case.bookmark.GetBookmarksUseCase
@@ -63,11 +66,15 @@ import ua.acclorite.book_story.presentation.history.HistoryScreen
 import ua.acclorite.book_story.presentation.library.LibraryScreen
 import ua.acclorite.book_story.presentation.reader.model.Checkpoint
 import ua.acclorite.book_story.presentation.reader.model.NoteAnchorMatcher
+import ua.acclorite.book_story.presentation.reader.model.resolvePdfBookmark
+import ua.acclorite.book_story.presentation.reader.model.pdfBookmarkPosition
+import ua.acclorite.book_story.presentation.reader.model.ReaderGeneration
 import java.io.File
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.UUID
 
 @HiltViewModel
 class ReaderModel @Inject constructor(
@@ -95,6 +102,35 @@ class ReaderModel @Inject constructor(
 ) : ViewModel() {
 
     private val mutex = Mutex()
+    private val bookSaveMutex = Mutex()
+    private val readerLifecycleMutex = Mutex()
+    private val readerGeneration = ReaderGeneration()
+    private val paceTracker = ReadingPaceTracker()
+    private var paceIndex: Int? = null
+    private val paceWordPattern = Regex("[\\p{L}\\p{N}]+(?:['’\\-][\\p{L}\\p{N}]+)*")
+
+    private fun resetPaceTracking() { paceTracker.reset(); paceIndex = null }
+
+    fun recordReadingScroll(index: Int) {
+        if (!settingsManager.showReadingTime.lastValue || !settingsManager.autoReadingPace.lastValue || _state.value.isLoading || _state.value.showMenu) {
+            resetPaceTracking()
+            return
+        }
+        val text = _state.value.text
+        if (index !in text.indices) return
+        val previous = paceIndex
+        if (previous == index) return
+        paceIndex = index
+        val count = if (previous != null && index > previous && index - previous <= 5) {
+            (previous until index).sumOf { position ->
+                (text.getOrNull(position) as? ReaderText.Text)?.let { paceWordPattern.findAll(it.line.text).count() } ?: 0
+            }
+        } else 0
+        paceTracker.observe(index, count, android.os.SystemClock.elapsedRealtime())?.let { sample ->
+            val old = settingsManager.learnedReadingPace.lastValue
+            settingsManager.learnedReadingPace.update(if (old in 50..600) (old * 3 + sample) / 4 else sample)
+        }
+    }
 
     private val _state = MutableStateFlow(ReaderState())
     val state = _state.asStateFlow()
@@ -108,21 +144,34 @@ class ReaderModel @Inject constructor(
     private var notesJob: Job? = null
     private var bookmarksJob: Job? = null
     private var textSearchJob: Job? = null
+    private var textLoadJob: Job? = null
+    private val textLoadGeneration = AtomicInteger(0)
+    private var pdfWordSessionId = UUID.randomUUID().toString()
     private val pdfSearchGeneration = AtomicInteger(0)
     private val textSearchGeneration = AtomicInteger(0)
     private val eventStack = mutableListOf<Job>()
 
     fun onEvent(event: ReaderEvent) {
+        if (event is ReaderEvent.OnScrollToChapter || event is ReaderEvent.OnScroll ||
+            event is ReaderEvent.OnRestoreCheckpoint || event is ReaderEvent.OnSelectNote ||
+            event is ReaderEvent.OnSelectBookmark || event is ReaderEvent.OnSelectTextSearchResult ||
+            event is ReaderEvent.OnSelectPdfMode || event is ReaderEvent.OnLoadText) resetPaceTracking()
+        if (event is ReaderEvent.OnLoadText) textLoadJob?.cancel()
         viewModelScope.launch {
             when (event) {
                 is ReaderEvent.OnLoadText -> {
                     withContext(Dispatchers.Default) {
+                        val generation = textLoadGeneration.incrementAndGet()
+                        val bookId = _state.value.book.id
                         val text = getTextUseCase(_state.value.book.id) { progress ->
                             viewModelScope.launch {
-                                _state.update { it.copy(textExtractionProgress = progress) }
+                                if (generation == textLoadGeneration.get() && _state.value.book.id == bookId) {
+                                    _state.update { it.copy(textExtractionProgress = progress) }
+                                }
                             }
                         }
                         ensureActive()
+                        if (generation != textLoadGeneration.get() || _state.value.book.id != bookId) return@withContext
 
                         if (text.isEmpty()) {
                             _state.update {
@@ -130,7 +179,8 @@ class ReaderModel @Inject constructor(
                                     isLoading = false,
                                     textExtractionProgress = null,
                                     errorMessage = UIText.StringResource(
-                                        resId = R.string.error_could_not_get_text
+                                        resId = if (_state.value.book.filePath.endsWith(".pdf", true))
+                                            R.string.pdf_text_unavailable else R.string.error_could_not_get_text
                                     )
                                 )
                             }
@@ -160,7 +210,7 @@ class ReaderModel @Inject constructor(
                         readingSessionTracker.activity(_state.value.book.progress)
                         ensureActive()
 
-                        updateBookUseCase(_state.value.book)
+                        saveCurrentBook()
 
                         LibraryScreen.refreshListChannel.trySend(0)
                         HistoryScreen.refreshListChannel.trySend(0)
@@ -171,13 +221,31 @@ class ReaderModel @Inject constructor(
 
                 is ReaderEvent.OnSelectPdfMode -> {
                     withContext(Dispatchers.Default) {
+                        textLoadGeneration.incrementAndGet()
+                        textLoadJob?.cancelAndJoin()
+                        pdfPageSaveJob?.cancelAndJoin()
+                        pdfSearchGeneration.incrementAndGet()
+                        pdfSearchJob?.cancelAndJoin()
                         // A pending text-search dialog must not survive
                         // the mode switch (its results are index-based).
                         textSearchGeneration.incrementAndGet()
                         textSearchJob?.cancel()
 
-                        val book = _state.value.book.copy(pdfOpenMode = event.mode)
-                        updateBookUseCase(book)
+                        val current = _state.value
+                        val book = if (current.book.pdfOpenMode == PdfOpenMode.TEXT &&
+                            current.text.isNotEmpty() && !current.isLoading
+                        ) {
+                            current.book.copy(
+                                pdfOpenMode = event.mode,
+                                scrollIndex = current.listState.firstVisibleItemIndex,
+                                scrollOffset = current.listState.firstVisibleItemScrollOffset
+                            )
+                        } else current.book.copy(pdfOpenMode = event.mode)
+                        if (event.persist) {
+                            savedPdfOpenModeOverride = null
+                        } else if (savedPdfOpenModeOverride == null) {
+                            savedPdfOpenModeOverride = Optional(current.book.pdfOpenMode)
+                        }
                         _state.update {
                             it.copy(
                                 book = book,
@@ -189,9 +257,13 @@ class ReaderModel @Inject constructor(
                                 text = if (event.mode == PdfOpenMode.TEXT) it.text else emptyList(),
                                 showTextSearch = false,
                                 textSearchResults = emptyList(),
-                                isTextSearching = false
+                                isTextSearching = false,
+                                showPdfSearch = false,
+                                isPdfSearching = false,
+                                pdfViewerError = null
                             )
                         }
+                        saveCurrentBook()
 
                         if (event.mode == PdfOpenMode.TEXT) {
                             onEvent(ReaderEvent.OnLoadText)
@@ -224,22 +296,19 @@ class ReaderModel @Inject constructor(
 
                     val progress = if (event.pageCount <= 1) 0f
                     else event.page.toFloat() / (event.pageCount - 1).toFloat()
-                    val book = _state.value.book.copy(
-                        pdfPage = event.page,
-                        pdfProgress = progress
-                    )
                     _state.update {
-                        it.copy(
-                            book = book,
+                        if (it.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) it else it.copy(
+                            book = it.book.copy(pdfPage = event.page, pdfProgress = progress),
                             pdfPageCount = event.pageCount
                         )
                     }
+                    if (_state.value.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) return@launch
                     readingSessionTracker.activity(progress)
 
                     pdfPageSaveJob?.cancel()
                     pdfPageSaveJob = viewModelScope.launch {
                         delay(300)
-                        updateBookUseCase(book)
+                        saveCurrentBook()
                         LibraryScreen.refreshListChannel.trySend(300)
                         HistoryScreen.refreshListChannel.trySend(300)
                     }
@@ -301,7 +370,9 @@ class ReaderModel @Inject constructor(
                             searchPdfPagesUseCase(bookId, query, onProgress = { progress ->
                                 if (generation == pdfSearchGeneration.get()) {
                                     viewModelScope.launch {
-                                        _state.update { it.copy(pdfSearchProgress = progress) }
+                                        if (generation == pdfSearchGeneration.get()) {
+                                            _state.update { it.copy(pdfSearchProgress = progress) }
+                                        }
                                     }
                                 }
                             })
@@ -341,7 +412,7 @@ class ReaderModel @Inject constructor(
                             pdfSearchProgress = null
                         )
                     }
-                    updateBookUseCase(_state.value.book)
+                    saveCurrentBook()
                 }
 
                 is ReaderEvent.OnRestoreScroll -> {
@@ -413,7 +484,7 @@ class ReaderModel @Inject constructor(
                             )
                         }
 
-                        updateBookUseCase(_state.value.book)
+                        saveCurrentBook()
 
                         readingSessionTracker.activity(_state.value.book.progress)
 
@@ -502,11 +573,16 @@ class ReaderModel @Inject constructor(
                 }
 
                 is ReaderEvent.OnLeave -> {
+                    val leavingSession = pdfWordSessionId
+                    textLoadGeneration.incrementAndGet()
+                    textLoadJob?.cancelAndJoin()
+                    pdfSearchGeneration.incrementAndGet()
+                    pdfSearchJob?.cancelAndJoin()
                     readingSessionTracker.stopReader()
-                    pdfPageSaveJob?.cancel()
-                    closePdfWordBoxesUseCase(_state.value.book.id)
+                    pdfPageSaveJob?.cancelAndJoin()
+                    closePdfWordBoxesUseCase(leavingSession)
                     if (_state.value.book.pdfOpenMode == PdfOpenMode.NATIVE_PDF) {
-                        updateBookUseCase(_state.value.book)
+                        saveCurrentBook()
                     }
                     _state.update {
                         it.copy(
@@ -530,7 +606,7 @@ class ReaderModel @Inject constructor(
                             )
                         }
 
-                        updateBookUseCase(_state.value.book)
+                        saveCurrentBook()
 
                         LibraryScreen.refreshListChannel.trySend(0)
                         HistoryScreen.refreshListChannel.trySend(0)
@@ -662,7 +738,7 @@ class ReaderModel @Inject constructor(
                                     bottomSheet = null
                                 )
                             }
-                            updateBookUseCase(_state.value.book)
+                            saveCurrentBook()
                         }
 
                         event.note.segments.isNotEmpty() -> {
@@ -671,7 +747,19 @@ class ReaderModel @Inject constructor(
                             // layout is composed; in the native PDF viewer
                             // the sheet just closes.
                             if (_state.value.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) {
-                                val target = event.note.segments.first().listItemIndex
+                                val current = _state.value
+                                val segments = if (current.book.filePath.endsWith(".pdf", true)) {
+                                    withContext(Dispatchers.Default) {
+                                        val context = currentCoroutineContext()
+                                        NoteAnchorMatcher.resolveExisting(event.note.selectedText, current.text, event.note.segments) { context.ensureActive() }
+                                    }
+                                } else event.note.segments
+                                if (_state.value.book.id != current.book.id || _state.value.book.pdfOpenMode != current.book.pdfOpenMode) return@launch
+                                if (segments.isEmpty()) {
+                                    android.widget.Toast.makeText(context, R.string.pdf_anchor_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
+                                val target = segments.first().listItemIndex
                                 _state.value.listState.requestScrollToItem(
                                     index = target,
                                     scrollOffset = 0
@@ -753,12 +841,16 @@ class ReaderModel @Inject constructor(
                         } else {
                             if (state.text.isEmpty()) return@withContext
 
-                            val index = state.listState.firstVisibleItemIndex
+                            val position = if (state.book.filePath.endsWith(".pdf", true)) {
+                                pdfBookmarkPosition(state.text, state.listState.firstVisibleItemIndex,
+                                    state.listState.firstVisibleItemScrollOffset) ?: return@withContext
+                            } else state.listState.firstVisibleItemIndex to state.listState.firstVisibleItemScrollOffset
+                            val (index, offset) = position
                             Bookmark(
                                 bookId = state.book.id,
                                 createdAt = System.currentTimeMillis(),
                                 scrollIndex = index,
-                                scrollOffset = state.listState.firstVisibleItemScrollOffset,
+                                scrollOffset = offset,
                                 progress = state.book.progress,
                                 previewText = bookmarkPreview(state.text, index),
                                 chapterTitle = state.currentChapter?.title
@@ -798,24 +890,33 @@ class ReaderModel @Inject constructor(
                                         pdfNavigationRequest = it.pdfNavigationRequest + 1
                                     )
                                 }
-                                updateBookUseCase(_state.value.book)
+                                saveCurrentBook()
                             }
                         }
 
                         else -> {
                             // Text anchors are only reachable in the text layout.
                             if (_state.value.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF) {
-                                val target = event.bookmark.scrollIndex
+                                val current = _state.value
+                                val position = if (current.book.filePath.endsWith(".pdf", true)) {
+                                    withContext(Dispatchers.Default) { resolvePdfBookmark(event.bookmark, current.text) }
+                                } else event.bookmark.scrollIndex to event.bookmark.scrollOffset
+                                if (_state.value.book.id != current.book.id || _state.value.book.pdfOpenMode != current.book.pdfOpenMode) return@launch
+                                if (position == null) {
+                                    android.widget.Toast.makeText(context, R.string.pdf_anchor_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
+                                val (target, offset) = position
                                 _state.value.listState.requestScrollToItem(
                                     index = target,
-                                    scrollOffset = event.bookmark.scrollOffset
+                                    scrollOffset = offset
                                 )
                                 onEvent(ReaderEvent.OnUpdateChapter(target))
                                 onEvent(
                                     ReaderEvent.OnChangeProgress(
                                         progress = calculateProgress(target),
                                         firstVisibleItemIndex = target,
-                                        firstVisibleItemOffset = event.bookmark.scrollOffset
+                                        firstVisibleItemOffset = offset
                                     )
                                 )
                             }
@@ -936,27 +1037,38 @@ class ReaderModel @Inject constructor(
                     _effects.emit(ReaderEffect.OnNavigateToBookInfo(event.changePath))
                 }
             }
-        }.also { eventStack.add(it) }
+        }.also {
+            if (event is ReaderEvent.OnLoadText) textLoadJob = it
+            synchronized(eventStack) { eventStack.add(it) }
+        }
     }
 
-    fun init(bookId: Int) {
-        viewModelScope.launch(Dispatchers.Default) {
+    fun init(bookId: Int): Int {
+        val generation = readerGeneration.next()
+        viewModelScope.launch {
             val book = getBookUseCase(bookId)
+            if (!readerGeneration.isCurrent(generation)) return@launch
 
             if (book == null) {
                 _effects.emit(ReaderEffect.OnNavigateBack)
                 return@launch
             }
 
+            val pdfUri = if (book.filePath.endsWith(".pdf", true)) getFileFromBookUseCase(bookId)?.uri else null
+            if (!readerGeneration.isCurrent(generation)) return@launch
+            readerLifecycleMutex.withLock {
+            if (!readerGeneration.isCurrent(generation)) return@withLock
             clear()
+            if (!readerGeneration.isCurrent(generation)) return@withLock
+            pdfWordSessionId = UUID.randomUUID().toString()
+            savedPdfOpenModeOverride = null
 
-            _state.update {
+            _state.update { current ->
+                if (!readerGeneration.isCurrent(generation)) return@update current
                 ReaderState(
                     book = book,
                     showMenu = book.pdfOpenMode == PdfOpenMode.NATIVE_PDF,
-                    pdfUri = if (book.filePath.endsWith(".pdf", true)) {
-                        getFileFromBookUseCase(bookId)?.uri
-                    } else null,
+                    pdfUri = pdfUri,
                     isPdfViewerLoading = book.pdfOpenMode == PdfOpenMode.NATIVE_PDF,
                     showPdfModeDialog = book.filePath.endsWith(".pdf", true) &&
                             book.pdfOpenMode == null,
@@ -964,18 +1076,19 @@ class ReaderModel @Inject constructor(
                             book.pdfOpenMode == null)
                 )
             }
+            if (!readerGeneration.isCurrent(generation)) return@withLock
 
             notesJob?.cancel()
             notesJob = viewModelScope.launch {
                 getNotesUseCase(bookId).collect { notes ->
-                    _state.update { it.copy(notes = notes) }
+                    _state.update { if (readerGeneration.isCurrent(generation) && it.book.id == bookId) it.copy(notes = notes) else it }
                 }
             }
 
             bookmarksJob?.cancel()
             bookmarksJob = viewModelScope.launch {
                 getBookmarksUseCase(bookId).collect { bookmarks ->
-                    _state.update { it.copy(bookmarks = bookmarks) }
+                    _state.update { if (readerGeneration.isCurrent(generation) && it.book.id == bookId) it.copy(bookmarks = bookmarks) else it }
                 }
             }
 
@@ -986,23 +1099,58 @@ class ReaderModel @Inject constructor(
                     onEvent(ReaderEvent.OnLoadText)
                 }
             }
+            }
         }
+        return generation
     }
 
-    fun clearAsync() {
+    fun clearAsync(generation: Int) {
+        if (!readerGeneration.close(generation)) return
+        val invalidatedGeneration = generation + 1
+        textLoadGeneration.incrementAndGet()
+        val session = pdfWordSessionId
+        val jobs = synchronized(eventStack) { eventStack.toList().also { eventStack.clear() } }
+        val oldNotesJob = notesJob
+        val oldBookmarksJob = bookmarksJob
+        val oldSearchJob = textSearchJob
+        val oldPdfSearchJob = pdfSearchJob
+        val oldPdfSaveJob = pdfPageSaveJob
         viewModelScope.launch {
-            eventStack.forEach { job ->
-                job.cancel()
+            jobs.forEach { it.cancel() }
+            oldNotesJob?.cancel()
+            oldBookmarksJob?.cancel()
+            oldSearchJob?.cancel()
+            oldPdfSearchJob?.cancel()
+            oldPdfSaveJob?.cancel()
+            readerLifecycleMutex.withLock {
+                jobs.forEach { it.join() }
+                closePdfWordBoxesUseCase(session)
+                if (readerGeneration.isCurrent(invalidatedGeneration)) _state.update { ReaderState() }
             }
-            notesJob?.cancel()
-            bookmarksJob?.cancel()
-            textSearchJob?.cancel()
-            _state.update { ReaderState() }
         }
     }
 
     fun setReadingForeground(foreground: Boolean) {
-        viewModelScope.launch { readingSessionTracker.setForeground(foreground) }
+        if (!foreground) resetPaceTracking()
+        viewModelScope.launch {
+            readingSessionTracker.setForeground(foreground)
+            if (!foreground && _state.value.book.id >= 0) {
+                pdfPageSaveJob?.cancelAndJoin()
+                val current = _state.value
+                if (current.book.pdfOpenMode != PdfOpenMode.NATIVE_PDF &&
+                    current.text.isNotEmpty() && !current.isLoading && current.errorMessage == null
+                ) {
+                    val index = current.listState.firstVisibleItemIndex
+                    val offset = current.listState.firstVisibleItemScrollOffset
+                    val progress = calculateProgress(index)
+                    _state.update { state ->
+                        if (state.book.id != current.book.id || state.book.pdfOpenMode != current.book.pdfOpenMode) state
+                        else state.copy(book = state.book.copy(scrollIndex = index, scrollOffset = offset, progress = progress))
+                    }
+                }
+                saveCurrentBook()
+            }
+        }
     }
 
     /**
@@ -1010,7 +1158,7 @@ class ReaderModel @Inject constructor(
      * loading or when the page has no extractable text.
      */
     suspend fun getPdfWordBoxes(pageIndex: Int): List<PdfWord>? {
-        return getPdfWordBoxesUseCase(_state.value.book.id, pageIndex).getOrNull()
+        return getPdfWordBoxesUseCase(_state.value.book.id, pdfWordSessionId, pageIndex).getOrNull()
     }
 
     fun onReaderDisposed() {
@@ -1018,11 +1166,11 @@ class ReaderModel @Inject constructor(
     }
 
     suspend fun clear() {
-        eventStack.forEach { job ->
-            job.cancel()
-            job.join()
-        }
-        eventStack.clear()
+        val oldPdfSession = pdfWordSessionId
+        val jobs = synchronized(eventStack) { eventStack.toList().also { eventStack.clear() } }
+        jobs.forEach { it.cancel() }
+        jobs.forEach { it.join() }
+        closePdfWordBoxesUseCase(oldPdfSession)
         notesJob?.cancel()
         bookmarksJob?.cancel()
         textSearchJob?.cancel()
@@ -1059,7 +1207,7 @@ class ReaderModel @Inject constructor(
                 )
             }
 
-            updateBookUseCase(_state.value.book)
+            saveCurrentBook()
 
             LibraryScreen.refreshListChannel.trySend(0)
             HistoryScreen.refreshListChannel.trySend(0)
@@ -1090,6 +1238,21 @@ class ReaderModel @Inject constructor(
             else -> ""
         }
     }
+
+    private suspend fun saveCurrentBook() = bookSaveMutex.withLock {
+        val book = _state.value.book
+        val saved = savedPdfOpenModeOverride?.let { book.copy(pdfOpenMode = it.value) } ?: book
+        if (book.id >= 0) updateBookUseCase(saved)
+    }
+
+    /** Wrapper so a saved `null` mode (never chosen) differs from "no override". */
+    private class Optional<T>(val value: T)
+
+    /**
+     * Book's saved PDF mode while the reader temporarily uses another one
+     * (opening a note from the library); null when there is no override.
+     */
+    private var savedPdfOpenModeOverride: Optional<PdfOpenMode?>? = null
 
     private fun calculateProgress(firstVisibleItemIndex: Int? = null): Float {
         if (

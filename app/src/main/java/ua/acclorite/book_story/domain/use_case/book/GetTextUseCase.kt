@@ -23,10 +23,10 @@ class GetTextUseCase @Inject constructor(
         if (bookId == -1) return emptyList()
 
         bookRepository.getText(bookId, onProgress).mapCatching { readerText ->
-            if (
-                readerText.filterIsInstance<ReaderText.Text>().isEmpty() ||
-                readerText.filterIsInstance<ReaderText.Chapter>().isEmpty()
-            ) {
+            val isPdf = if (readerText.none { it is ReaderText.Text }) {
+                bookRepository.getBook(bookId).getOrNull()?.filePath?.endsWith(".pdf", true) == true
+            } else false
+            if (!hasReadableText(readerText, isPdf)) {
                 throw Exception("ReaderText is empty.")
             }
 
@@ -43,3 +43,6 @@ class GetTextUseCase @Inject constructor(
         )
     }
 }
+
+internal fun hasReadableText(text: List<ReaderText>, isPdf: Boolean): Boolean =
+    text.any { it is ReaderText.Chapter } && (isPdf || text.any { it is ReaderText.Text })

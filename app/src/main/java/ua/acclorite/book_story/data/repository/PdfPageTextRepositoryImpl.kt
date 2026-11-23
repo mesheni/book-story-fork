@@ -40,7 +40,26 @@ class PdfPageTextRepositoryImpl @Inject constructor(
     private val cacheMutex = Mutex()
     private val memoryCache = ConcurrentHashMap<Int, Pair<String, List<PdfPageText>>>()
 
-    override suspend fun getPageTexts(bookId: Int, onProgress: (Float) -> Unit): Result<List<PdfPageText>> = try {
+    /**
+     * Progress callbacks of every caller waiting for a book's pages. A caller queued
+     * behind a running extraction (e.g. a search started while the reading-time
+     * estimate extracts pages) gets that extraction's progress instead of none.
+     */
+    private val progressListeners = ConcurrentHashMap<Int, MutableSet<(Float) -> Unit>>()
+
+    override suspend fun getPageTexts(bookId: Int, onProgress: (Float) -> Unit): Result<List<PdfPageText>> {
+        val listeners = progressListeners.computeIfAbsent(bookId) { ConcurrentHashMap.newKeySet() }
+        listeners += onProgress
+        return try {
+            extractPageTexts(bookId) { progress ->
+                progressListeners[bookId]?.forEach { it(progress) }
+            }
+        } finally {
+            listeners -= onProgress
+        }
+    }
+
+    private suspend fun extractPageTexts(bookId: Int, onProgress: (Float) -> Unit): Result<List<PdfPageText>> = try {
         Result.success(cacheMutex.withLock { withContext(Dispatchers.IO) {
             val book = bookRepository.getBook(bookId).getOrThrow()
             require(book.filePath.endsWith(".pdf", ignoreCase = true)) {

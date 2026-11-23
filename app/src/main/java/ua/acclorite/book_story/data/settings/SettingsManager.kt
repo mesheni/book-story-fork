@@ -21,6 +21,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.first
+import ua.acclorite.book_story.data.backup.BackupValue
+import ua.acclorite.book_story.data.backup.mergeBackupPreferences
 import ua.acclorite.book_story.core.data.CoreData
 import ua.acclorite.book_story.core.language.Language
 import ua.acclorite.book_story.core.language.LanguageUtils
@@ -58,6 +63,9 @@ class SettingsManager @Inject constructor(
     private val dataStore: DataStore
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val settingsWriteMutex = Mutex()
+    private val restoreValidators = mutableMapOf<String, (Any) -> Unit>()
+    private val restoreAppliers = mutableMapOf<String, (Any) -> Unit>()
 
     private val settingsCount = AtomicInteger(0)
     private val initializedSettingsCount = AtomicInteger(0)
@@ -273,6 +281,18 @@ class SettingsManager @Inject constructor(
     val progressBar = setting<Boolean, Boolean>(
         key = booleanPreferencesKey("progress_bar"), default = false
     )
+    val showReadingTime = setting<Boolean, Boolean>(
+        key = booleanPreferencesKey("show_reading_time"), default = true
+    )
+    val readingWordsPerMinute = setting<Int, Int>(
+        key = intPreferencesKey("reading_words_per_minute"), default = 200
+    )
+    val autoReadingPace = setting<Boolean, Boolean>(
+        key = booleanPreferencesKey("auto_reading_pace"), default = true
+    )
+    val learnedReadingPace = setting<Int, Int>(
+        key = intPreferencesKey("learned_reading_pace"), default = 0
+    )
     val progressBarPadding = setting<Int, Int>(
         key = intPreferencesKey("progress_bar_padding"), default = 4
     )
@@ -357,6 +377,29 @@ class SettingsManager @Inject constructor(
     )
     /* - - - - - - - - - - - - - - - - - - - - - - */
 
+    suspend fun validateRestorePreferences(backup: Map<String, BackupValue>) {
+        initialized.first { it }
+        settingsWriteMutex.withLock {
+            val merged = mergeBackupPreferences(dataStore.snapshot(), backup)
+            backup.keys.forEach { key ->
+                val validate = restoreValidators[key] ?: error("Unknown setting $key")
+                validate(merged.getValue(key))
+            }
+        }
+    }
+
+    suspend fun restorePreferences(backup: Map<String, BackupValue>) {
+        initialized.first { it }
+        settingsWriteMutex.withLock {
+            val merged = mergeBackupPreferences(dataStore.snapshot(), backup)
+            backup.keys.forEach { key ->
+                val validate = restoreValidators[key] ?: error("Unknown setting $key")
+                validate(merged.getValue(key))
+            }
+            dataStore.replaceAll(merged)
+            backup.keys.forEach { key -> restoreAppliers.getValue(key)(merged.getValue(key)) }
+        }
+    }
 
     private fun <T, P> setting(
         key: Preferences.Key<P>,
@@ -372,12 +415,14 @@ class SettingsManager @Inject constructor(
             setSetting = {
                 scope.launch {
                     logI(TAG, "Updating setting: [${key.name}].")
-                    dataStore.putData(key, it)
+                    settingsWriteMutex.withLock { dataStore.putData(key, it) }
                 }
             },
             serialize = serialize,
             deserialize = deserialize
         ).also { setting ->
+            restoreValidators[key.name] = { value -> setting.validateRestored(value as P) }
+            restoreAppliers[key.name] = { value -> setting.applyRestored(value as P) }
             scope.launch {
                 setting.init(dataStore.getNullableData<P>(key))
                 logI(TAG, "Successfully initialized setting: [${key.name}].")

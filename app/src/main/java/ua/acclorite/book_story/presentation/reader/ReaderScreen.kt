@@ -24,6 +24,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
@@ -47,7 +51,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.parcelize.Parcelize
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ua.acclorite.book_story.core.helpers.calculateProgress
+import ua.acclorite.book_story.domain.model.library.PdfOpenMode
+import ua.acclorite.book_story.domain.use_case.book.ReadingTimeEstimate
+import ua.acclorite.book_story.domain.use_case.book.estimateReadingTime
+import androidx.compose.ui.res.stringResource
+import ua.acclorite.book_story.R
 import ua.acclorite.book_story.presentation.navigator.Screen
 import ua.acclorite.book_story.presentation.reader.model.ReaderColorEffects
 import ua.acclorite.book_story.presentation.reader.model.ReaderProgressCount
@@ -61,7 +72,7 @@ import ua.acclorite.book_story.ui.reader.ReaderEffects
 import kotlin.math.roundToInt
 
 @Parcelize
-data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
+data class ReaderScreen(val bookId: Int, val noteId: Int? = null) : Screen, Parcelable {
 
     companion object {
         const val CHAPTERS_DRAWER = "chapters_drawer"
@@ -74,10 +85,30 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
     @Composable
     override fun Content() {
         val screenModel = hiltViewModel<ReaderModel>()
+        val readerGeneration = remember(screenModel, bookId) { intArrayOf(0) }
         val settingsModel = hiltViewModel<SettingsModel>()
         val settings = LocalSettings.current
 
         val state = screenModel.state.collectAsStateWithLifecycle()
+        var noteOpened by rememberSaveable(bookId, noteId) { mutableStateOf(false) }
+        LaunchedEffect(noteId, state.value) {
+            if (noteOpened || noteId == null || state.value.book.id != bookId) return@LaunchedEffect
+            val note = state.value.notes.firstOrNull { it.id == noteId } ?: return@LaunchedEffect
+            val book = state.value.book
+            if (book.filePath.endsWith(".pdf", true)) {
+                val requiredMode = if (note.anchoredToPdf) PdfOpenMode.NATIVE_PDF else PdfOpenMode.TEXT
+                if (book.pdfOpenMode != requiredMode) {
+                    // Session-only: opening a note must not change the book's saved mode
+                    screenModel.onEvent(ReaderEvent.OnSelectPdfMode(requiredMode, persist = false))
+                    return@LaunchedEffect
+                }
+            }
+            if (book.pdfOpenMode == PdfOpenMode.NATIVE_PDF) {
+                if (state.value.isPdfViewerLoading || state.value.pdfPageCount <= 0 || state.value.pdfViewerError != null) return@LaunchedEffect
+            } else if (state.value.isLoading || state.value.text.isEmpty()) return@LaunchedEffect
+            noteOpened = true
+            screenModel.onEvent(ReaderEvent.OnSelectNote(note))
+        }
         val settingsState = settingsModel.state.collectAsStateWithLifecycle()
 
         val activity = LocalActivity.current
@@ -114,6 +145,9 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
                         available: Offset,
                         source: NestedScrollSource
                     ): Offset {
+                        if (source == NestedScrollSource.UserInput && consumed.y != 0f) {
+                            screenModel.recordReadingScroll(listState.firstVisibleItemIndex)
+                        }
                         consumed.y.let { velocity ->
                             if (velocity in -70f..70f) return@let
                             if (!state.value.showMenu) return@let
@@ -352,12 +386,25 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
                 }
             }
         }
-        val progress = remember(bookProgress, chapterProgress) {
-            "${bookProgress}${chapterProgress}"
+        // Reading time lives inside the progress bar: it must not force the bar
+        // on for users who disabled it (showReadingTime defaults to true)
+        val timeEnabled = settings.showReadingTime.value && settings.progressBar.value
+        val manualReadingSpeed = settings.readingWordsPerMinute.value
+        val autoReadingPace = settings.autoReadingPace.value
+        val learnedReadingPace = settings.learnedReadingPace.value
+        val readingSpeed = if (autoReadingPace && learnedReadingPace in 50..600) learnedReadingPace else manualReadingSpeed
+        val readingText = state.value.text
+        val visibleIndex = listState.firstVisibleItemIndex
+        val estimate by produceState<ReadingTimeEstimate?>(null, readingText, visibleIndex, readingSpeed, timeEnabled) {
+            value = if (timeEnabled) withContext(Dispatchers.Default) { estimateReadingTime(readingText, visibleIndex, readingSpeed) } else null
         }
+        val timeLabel = estimate?.let {
+            stringResource(if (it.isChapter) R.string.reading_time_chapter else R.string.reading_time_book, it.minutes)
+        }
+        val progress = "${bookProgress}${chapterProgress}" + (timeLabel?.let { " · $it" } ?: "")
 
         LaunchedEffect(Unit) {
-            screenModel.init(bookId = bookId)
+            readerGeneration[0] = screenModel.init(bookId = bookId)
         }
         LaunchedEffect(settings.fullscreen.value) {
             screenModel.onEvent(
@@ -402,7 +449,7 @@ data class ReaderScreen(val bookId: Int) : Screen, Parcelable {
 
         DisposableEffect(Unit) {
             onDispose {
-                screenModel.clearAsync()
+                screenModel.clearAsync(readerGeneration[0])
                 WindowCompat.getInsetsController(
                     activity.window,
                     activity.window.decorView

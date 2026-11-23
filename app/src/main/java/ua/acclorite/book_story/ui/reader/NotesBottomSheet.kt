@@ -28,6 +28,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,11 +39,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ua.acclorite.book_story.R
 import ua.acclorite.book_story.domain.model.note.Note
+import ua.acclorite.book_story.domain.model.note.NoteSegment
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.domain.model.reader.ReaderText.Chapter
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
+import ua.acclorite.book_story.presentation.reader.model.NoteAnchorMatcher
 import ua.acclorite.book_story.ui.common.components.common.StyledText
 import ua.acclorite.book_story.ui.common.components.modal_bottom_sheet.ModalBottomSheet
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * The book's notes list. Clicking a note jumps to its location,
@@ -50,12 +59,19 @@ import ua.acclorite.book_story.ui.common.components.modal_bottom_sheet.ModalBott
 @Composable
 fun NotesBottomSheet(
     notes: List<Note>,
+    isPdfText: Boolean,
     text: List<ReaderText>,
     selectNote: (ReaderEvent.OnSelectNote) -> Unit,
     editNote: (ReaderEvent.OnEditNote) -> Unit,
     exportNotes: (ReaderEvent.OnExportNotes) -> Unit,
     dismissBottomSheet: (ReaderEvent.OnDismissBottomSheet) -> Unit
 ) {
+    val resolvedAnchors by key(notes, text, isPdfText) { produceState<Map<Int, List<NoteSegment>>?>(null) {
+        value = if (isPdfText) withContext(Dispatchers.Default) {
+            val context = currentCoroutineContext()
+            NoteAnchorMatcher.resolveAll(notes, text) { context.ensureActive() }
+        } else null
+    } }
     ModalBottomSheet(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,7 +160,14 @@ fun NotesBottomSheet(
                                     )
                                 }
                                 StyledText(
-                                    text = noteLocation(note, text),
+                                    text = if (isPdfText && note.segments.isNotEmpty()) {
+                                        val segments = resolvedAnchors?.get(note.id)
+                                        when {
+                                            segments == null -> ""
+                                            segments.isEmpty() -> stringResource(R.string.pdf_anchor_unavailable)
+                                            else -> chapterTitleFor(text, segments.first().listItemIndex) ?: ""
+                                        }
+                                    } else noteLocation(note, text),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     ),

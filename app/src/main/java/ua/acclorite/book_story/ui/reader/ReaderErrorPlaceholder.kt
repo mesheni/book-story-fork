@@ -31,6 +31,7 @@ import ua.acclorite.book_story.ui.navigator.NavigatorBackIconButton
 @Composable
 fun ReaderErrorPlaceholder(
     errorMessage: UIText,
+    openPdfPages: (() -> Unit)? = null,
     leave: (ReaderEvent.OnLeave) -> Unit,
     navigateToBookInfo: (ReaderEvent.OnNavigateToBookInfo) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit
@@ -67,8 +68,11 @@ fun ReaderErrorPlaceholder(
             ErrorPlaceholder(
                 errorMessage = errorMessage.asString(),
                 icon = painterResource(id = R.drawable.error),
-                actionTitle = stringResource(id = R.string.change_path),
+                actionTitle = stringResource(id = if (openPdfPages != null) R.string.open_pdf_as_pages else R.string.change_path),
                 action = {
+                    if (openPdfPages != null) {
+                        openPdfPages()
+                    } else {
                     leave(
                         ReaderEvent.OnLeave(
                             navigate = {
@@ -80,6 +84,7 @@ fun ReaderErrorPlaceholder(
                             }
                         )
                     )
+                    }
                 }
             )
         }

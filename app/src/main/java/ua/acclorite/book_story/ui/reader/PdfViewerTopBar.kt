@@ -19,6 +19,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.text.style.TextOverflow
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
@@ -30,13 +32,15 @@ fun PdfViewerTopBar(
     book: Book,
     page: Int,
     pageCount: Int,
+    readingTime: String?,
     lockMenu: Boolean,
     leave: (ReaderEvent.OnLeave) -> Unit,
     navigateBack: (ReaderEvent.OnNavigateBack) -> Unit,
     showPdfModeDialog: (ReaderEvent.OnShowPdfModeDialog) -> Unit,
     showNotesBottomSheet: (ReaderEvent.OnShowNotesBottomSheet) -> Unit,
     showBookmarksBottomSheet: (ReaderEvent.OnShowBookmarksBottomSheet) -> Unit,
-    showPdfSearch: (ReaderEvent.OnShowPdfSearch) -> Unit
+    showPdfSearch: (ReaderEvent.OnShowPdfSearch) -> Unit,
+    showPageDialog: () -> Unit
 ) {
     TopAppBar(
         navigationIcon = {
@@ -54,6 +58,7 @@ fun PdfViewerTopBar(
             }
         },
         title = {
+            Column {
             StyledText(
                 text = book.title,
                 modifier = Modifier,
@@ -61,6 +66,8 @@ fun PdfViewerTopBar(
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleMedium
             )
+            readingTime?.let { StyledText(text = it, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
         },
         actions = {
             IconButton(
@@ -98,6 +105,7 @@ fun PdfViewerTopBar(
             }
             StyledText(
                 text = if (pageCount > 0) "${page + 1} / $pageCount" else "",
+                modifier = Modifier.clickable(enabled = !lockMenu && pageCount > 0, onClick = showPageDialog),
                 style = MaterialTheme.typography.labelLarge
             )
             IconButton(

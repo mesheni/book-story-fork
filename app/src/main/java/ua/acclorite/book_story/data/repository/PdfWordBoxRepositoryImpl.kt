@@ -56,17 +56,17 @@ class PdfWordBoxRepositoryImpl @Inject constructor(
         val lock = Mutex()
     }
 
-    private val sessions = ConcurrentHashMap<Int, Session>()
+    private val sessions = ConcurrentHashMap<String, Session>()
     private val creationMutex = Mutex()
 
-    override suspend fun getWordBoxes(bookId: Int, pageIndex: Int): Result<List<PdfWord>> = try {
+    override suspend fun getWordBoxes(bookId: Int, sessionId: String, pageIndex: Int): Result<List<PdfWord>> = try {
         withContext(Dispatchers.IO) {
             // Fast path: an open session serves cached pages without
             // repeated book/file database reads.
-            sessions[bookId]?.let { session ->
+            sessions[sessionId]?.let { session ->
                 session.cache.get(pageIndex)?.let { return@withContext it }
             }
-            val session = obtainSession(bookId)
+            val session = obtainSession(bookId, sessionId)
             session.lock.withLock {
                 session.cache.get(pageIndex)?.let { return@withLock it }
                 if (pageIndex !in 0 until session.document.numberOfPages) {
@@ -83,17 +83,18 @@ class PdfWordBoxRepositoryImpl @Inject constructor(
         Result.failure(error)
     }
 
-    override suspend fun close(bookId: Int) {
-        val session = sessions.remove(bookId) ?: return
+    override suspend fun close(sessionId: String) {
         // NonCancellable: a cancelled reader must still release the document.
         withContext(Dispatchers.IO + NonCancellable) {
-            session.lock.withLock {
-                runCatching { session.document.close() }
+            creationMutex.withLock {
+                sessions.remove(sessionId)?.let { session ->
+                    session.lock.withLock { runCatching { session.document.close() } }
+                }
             }
         }
     }
 
-    private suspend fun obtainSession(bookId: Int): Session {
+    private suspend fun obtainSession(bookId: Int, sessionId: String): Session {
         creationMutex.withLock {
             val book = bookRepository.getBook(bookId).getOrThrow()
             require(book.filePath.endsWith(".pdf", ignoreCase = true)) {
@@ -104,9 +105,11 @@ class PdfWordBoxRepositoryImpl @Inject constructor(
                 cachedFile.uri, cachedFile.path, cachedFile.size, cachedFile.lastModified
             ).joinToString("|")
 
-            sessions[bookId]?.takeIf { it.signature == signature }?.let { return it }
+            sessions[sessionId]?.takeIf { it.signature == signature }?.let { return it }
 
-            close(bookId)
+            sessions.remove(sessionId)?.let { old ->
+                old.lock.withLock { runCatching { old.document.close() } }
+            }
             PDFBoxResourceLoader.init(application)
             val input = application.contentResolver.openInputStream(cachedFile.uri.toUri())
                 ?: throw IllegalStateException("Unable to open PDF file")
@@ -115,7 +118,7 @@ class PdfWordBoxRepositoryImpl @Inject constructor(
                 signature = signature,
                 document = document,
                 cache = object : LruCache<Int, List<PdfWord>>(WORD_CACHE_PAGES) {}
-            ).also { sessions[bookId] = it }
+            ).also { sessions[sessionId] = it }
         }
     }
 
@@ -123,8 +126,7 @@ class PdfWordBoxRepositoryImpl @Inject constructor(
         val page: PDPage = document.getPage(pageIndex)
         val cropBox = page.cropBox
         val rotation = ((page.rotation % 360) + 360) % 360
-        // getXDirAdj/getYDirAdj coordinates live in the rotated ("visual")
-        // space, so the normalizer uses the page size the reader renders.
+        // PDFBox's direction-adjusted coordinates ignore page rotation.
         val visualWidth = if (rotation == 90 || rotation == 270) cropBox.height else cropBox.width
         val visualHeight = if (rotation == 90 || rotation == 270) cropBox.width else cropBox.height
         if (visualWidth <= 0f || visualHeight <= 0f) return emptyList()
@@ -144,10 +146,10 @@ class PdfWordBoxRepositoryImpl @Inject constructor(
                     if (word.isNotBlank()) {
                         words += PdfWord(
                             text = word.toString(),
-                            left = (minX / visualWidth).coerceIn(0f, 1f),
-                            top = (minY / visualHeight).coerceIn(0f, 1f),
-                            right = (maxX / visualWidth).coerceIn(0f, 1f),
-                            bottom = (maxY / visualHeight).coerceIn(0f, 1f)
+                            left = minX,
+                            top = minY,
+                            right = maxX,
+                            bottom = maxY
                         )
                     }
                     builder = null
@@ -156,10 +158,15 @@ class PdfWordBoxRepositoryImpl @Inject constructor(
                 textPositions.forEach { position ->
                     val glyph = position.unicode ?: return@forEach
                     if (glyph.isNotBlank()) {
-                        val x = position.xDirAdj
-                        val y = position.yDirAdj - position.heightDir
-                        val right = x + position.widthDirAdj
-                        val bottom = y + position.heightDir
+                        val rect = mapPdfGlyph(
+                            position.xDirAdj, position.yDirAdj, position.widthDirAdj,
+                            position.heightDir, cropBox.width, cropBox.height,
+                            position.dir.toInt(), rotation
+                        )
+                        val x = rect.left
+                        val y = rect.top
+                        val right = rect.right
+                        val bottom = rect.bottom
                         if (builder == null) {
                             builder = StringBuilder()
                             minX = x

@@ -32,6 +32,10 @@ class Setting<T, P>(
         setSetting(serialize(value))
     }
 
+    fun validateRestored(value: P) { deserialize(value) }
+
+    fun applyRestored(value: P) { _value.update { deserialize(value) } }
+
     fun init(value: P?) {
         if (value == null) {
             setSetting(serialize(default))

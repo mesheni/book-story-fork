@@ -177,6 +177,7 @@ fun ReaderScaffold(
     ) {
         ReaderLayout(
             text = text,
+            isPdfText = book.filePath.endsWith(".pdf", true),
             listState = listState,
             contentPadding = contentPadding,
             verticalPadding = verticalPadding,

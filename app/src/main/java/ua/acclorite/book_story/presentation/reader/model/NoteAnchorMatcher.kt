@@ -7,6 +7,7 @@
 package ua.acclorite.book_story.presentation.reader.model
 
 import ua.acclorite.book_story.domain.model.note.NoteSegment
+import ua.acclorite.book_story.domain.model.note.Note
 import ua.acclorite.book_story.domain.model.reader.ReaderText
 
 /**
@@ -54,6 +55,57 @@ object NoteAnchorMatcher {
 
     /** How many paragraphs past the start one to scan while matching. */
     private const val MAX_LOOKAHEAD_PARAGRAPHS = 200
+
+    /** Preserve a valid anchor; otherwise accept only an unambiguous match. */
+    fun resolveExisting(
+        selection: String, text: List<ReaderText>, original: List<NoteSegment>, checkActive: () -> Unit = {}
+    ): List<NoteSegment> = resolveExisting(selection, text, original, null, checkActive)
+
+    fun resolveAll(notes: List<Note>, text: List<ReaderText>, checkActive: () -> Unit = {}): Map<Int, List<NoteSegment>> {
+        if (notes.none { it.segments.isNotEmpty() }) return emptyMap()
+        val paragraphs = text.mapIndexedNotNull { index, item ->
+            if (index % 1024 == 0) checkActive()
+            (item as? ReaderText.Text)?.let { Paragraph(index, it.line.text) }
+        }
+        return notes.associate { note ->
+            checkActive()
+            note.id to resolveExisting(note.selectedText, text, note.segments, paragraphs, checkActive)
+        }
+    }
+
+    private fun resolveExisting(
+        selection: String, text: List<ReaderText>, original: List<NoteSegment>,
+        prepared: List<Paragraph>?, checkActive: () -> Unit
+    ): List<NoteSegment> {
+        if (original.isEmpty()) return emptyList()
+        val target = Paragraph(-1, selection).normalized
+        if (target.isEmpty()) return emptyList()
+        val pieces = original.mapNotNull { segment ->
+            val paragraph = (text.getOrNull(segment.listItemIndex) as? ReaderText.Text)?.line?.text
+                ?: return@mapNotNull null
+            if (segment.start < 0 || segment.end > paragraph.length || segment.start >= segment.end) {
+                return@mapNotNull null
+            }
+            paragraph.substring(segment.start, segment.end)
+        }
+        if (pieces.size == original.size && Paragraph(-1, pieces.joinToString(" ")).normalized == target) {
+            return original
+        }
+        val paragraphs = prepared ?: text.mapIndexedNotNull { index, item ->
+            if (index % 1024 == 0) checkActive()
+            (item as? ReaderText.Text)?.let { Paragraph(index, it.line.text) }
+        }
+        var match: List<NoteSegment>? = null
+        paragraphs.forEachIndexed { start, paragraph ->
+            paragraph.normalized.indices.forEach { position ->
+                if (position % 8192 == 0) checkActive()
+                val candidate = tryMatch(target, paragraphs, start, position) ?: return@forEach
+                if (match != null) return emptyList()
+                match = candidate
+            }
+        }
+        return match ?: emptyList()
+    }
 
     /**
      * @param selection the selected string.

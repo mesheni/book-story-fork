@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 import ua.acclorite.book_story.domain.model.note.Note
 
 interface NoteRepository {
+    fun getAllNotes(): Flow<List<Note>>
+
     fun getNotesForBook(bookId: Int): Flow<List<Note>>
 
     suspend fun insertNote(note: Note): Result<Long>

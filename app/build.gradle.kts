@@ -140,6 +140,12 @@ dependencies {
 
     // PDF parser
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("io.github.ahmerafzal1:ahmer-pdfviewer:2.0.1") {
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-play-services")
+    }
+    implementation("io.github.ahmerafzal1:ahmer-pdfium:1.9.1") {
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-play-services")
+    }
 
     // EPUB parser
     implementation("org.jsoup:jsoup:1.21.2")

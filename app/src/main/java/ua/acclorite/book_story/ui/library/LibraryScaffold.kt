@@ -7,6 +7,7 @@
 package ua.acclorite.book_story.ui.library
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.PagerState
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import ua.acclorite.book_story.domain.model.library.Category
 import ua.acclorite.book_story.presentation.library.LibraryEvent
+import ua.acclorite.book_story.presentation.library.recentBooks
 import ua.acclorite.book_story.presentation.library.model.LibraryLayout
 import ua.acclorite.book_story.presentation.library.model.LibrarySortOrder
 import ua.acclorite.book_story.presentation.library.model.LibraryTitlePosition
@@ -104,6 +106,12 @@ fun LibraryScaffold(
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
+            Column {
+            if (!isLoading && !showSearch && !hasSelectedItems) {
+                RecentBooksRow(recentBooks(books.map { it.data })) {
+                    navigateToReader(LibraryEvent.OnNavigateToReader(it.id))
+                }
+            }
             LibraryPager(
                 books = books,
                 pagerState = pagerState,
@@ -126,6 +134,7 @@ fun LibraryScaffold(
                 navigateToReader = navigateToReader,
                 navigateToBookInfo = navigateToBookInfo
             )
+            }
 
             LibraryRefreshIndicator(
                 isRefreshing = isRefreshing,

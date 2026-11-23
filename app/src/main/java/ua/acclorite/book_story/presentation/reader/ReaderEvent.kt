@@ -20,7 +20,9 @@ sealed class ReaderEvent {
     data object OnLoadText : ReaderEvent()
 
     data class OnSelectPdfMode(
-        val mode: PdfOpenMode
+        val mode: PdfOpenMode,
+        /** false: switch for this reader session only, keep the book's saved mode. */
+        val persist: Boolean = true
     ) : ReaderEvent()
 
     data object OnShowPdfModeDialog : ReaderEvent()

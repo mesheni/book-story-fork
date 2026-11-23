@@ -24,8 +24,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
 import ua.acclorite.book_story.R
 import ua.acclorite.book_story.data.settings.SettingsManager
 import ua.acclorite.book_story.presentation.browse.BrowseModel
@@ -56,15 +54,10 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
-    companion object {
-        private val _externalPdfUris = Channel<Uri>(Channel.BUFFERED)
-        val externalPdfUris = _externalPdfUris.receiveAsFlow()
-    }
-
     @Inject
     lateinit var settings: SettingsManager
     private val settingsModel: SettingsModel by viewModels()
-    private var pendingPdfUri: Uri? = null
+    private val externalPdfModel: ExternalPdfModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen().setKeepOnScreenCondition {
@@ -72,9 +65,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         super.onCreate(savedInstanceState)
-        pendingPdfUri = extractPdfUri(intent)
-        pendingPdfUri?.let { _externalPdfUris.trySend(it) }
-        pendingPdfUri = null
+        if (savedInstanceState == null) extractPdfUri(intent)?.let(externalPdfModel::openUri)
 
         // Bigger Cursor size for Room
         try {
@@ -94,7 +85,6 @@ class MainActivity : AppCompatActivity() {
             val libraryModel = hiltViewModel<LibraryModel>()
             val historyModel = hiltViewModel<HistoryModel>()
             val browseModel = hiltViewModel<BrowseModel>()
-            val externalPdfModel = hiltViewModel<ExternalPdfModel>()
 
             SettingsEffects(
                 effects = settingsModel.effects
@@ -201,9 +191,7 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        pendingPdfUri = extractPdfUri(intent)
-        pendingPdfUri?.let { _externalPdfUris.trySend(it) }
-        pendingPdfUri = null
+        extractPdfUri(intent)?.let(externalPdfModel::openUri)
     }
 
     private fun extractPdfUri(intent: Intent?): Uri? {
@@ -222,8 +210,4 @@ class MainActivity : AppCompatActivity() {
         return uri
     }
 
-    override fun onDestroy() {
-        cacheDir.deleteRecursively()
-        super.onDestroy()
-    }
 }

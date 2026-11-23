@@ -17,6 +17,7 @@ import ua.acclorite.book_story.presentation.reader.ReaderScreen
 @Composable
 fun ReaderBottomSheet(
     bottomSheet: BottomSheet?,
+    isPdfText: Boolean,
     notes: List<Note>,
     bookmarks: List<Bookmark>,
     text: List<ReaderText>,
@@ -40,6 +41,7 @@ fun ReaderBottomSheet(
         ReaderScreen.NOTES_BOTTOM_SHEET -> {
             NotesBottomSheet(
                 notes = notes,
+                isPdfText = isPdfText,
                 text = text,
                 selectNote = selectNote,
                 editNote = editNote,
@@ -51,6 +53,8 @@ fun ReaderBottomSheet(
         ReaderScreen.BOOKMARKS_BOTTOM_SHEET -> {
             BookmarksBottomSheet(
                 bookmarks = bookmarks,
+                text = text,
+                isPdfText = isPdfText,
                 addBookmark = addBookmark,
                 selectBookmark = selectBookmark,
                 deleteBookmark = deleteBookmark,

@@ -13,8 +13,8 @@ interface PdfWordBoxRepository {
      * Word boxes of a single page, normalized to the page size.
      * An empty list means the page has no text layer.
      */
-    suspend fun getWordBoxes(bookId: Int, pageIndex: Int): Result<List<PdfWord>>
+    suspend fun getWordBoxes(bookId: Int, sessionId: String, pageIndex: Int): Result<List<PdfWord>>
 
     /** Releases the cached document of a book; call when the reader closes. */
-    suspend fun close(bookId: Int)
+    suspend fun close(sessionId: String)
 }

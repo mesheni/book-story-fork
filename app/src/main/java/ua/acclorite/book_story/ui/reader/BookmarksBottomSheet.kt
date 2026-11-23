@@ -25,6 +25,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -32,13 +35,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ua.acclorite.book_story.R
 import ua.acclorite.book_story.domain.model.bookmark.Bookmark
+import ua.acclorite.book_story.domain.model.reader.ReaderText
 import ua.acclorite.book_story.presentation.reader.ReaderEvent
+import ua.acclorite.book_story.presentation.reader.model.resolvePdfBookmark
 import ua.acclorite.book_story.ui.common.components.common.StyledText
 import ua.acclorite.book_story.ui.common.components.modal_bottom_sheet.ModalBottomSheet
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The book's bookmarks list. The top button saves the current
@@ -48,11 +55,18 @@ import java.time.format.FormatStyle
 @Composable
 fun BookmarksBottomSheet(
     bookmarks: List<Bookmark>,
+    text: List<ReaderText>,
+    isPdfText: Boolean,
     addBookmark: (ReaderEvent.OnAddBookmark) -> Unit,
     selectBookmark: (ReaderEvent.OnSelectBookmark) -> Unit,
     deleteBookmark: (ReaderEvent.OnDeleteBookmark) -> Unit,
     dismissBottomSheet: (ReaderEvent.OnDismissBottomSheet) -> Unit
 ) {
+    val resolvedBookmarks by key(bookmarks, text, isPdfText) { produceState<Map<Int, Pair<Int, Int>?>?>(null) {
+        value = if (isPdfText) withContext(Dispatchers.Default) {
+            bookmarks.associate { it.id to resolvePdfBookmark(it, text) }
+        } else null
+    } }
     ModalBottomSheet(
         modifier = Modifier
             .fillMaxWidth()
@@ -122,9 +136,16 @@ fun BookmarksBottomSheet(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                bookmarkLocation(bookmark)?.let { location ->
+                                val location = if (isPdfText && !bookmark.anchoredToPdf) {
+                                    when {
+                                        resolvedBookmarks == null -> null
+                                        resolvedBookmarks?.get(bookmark.id) == null -> stringResource(R.string.pdf_anchor_unavailable)
+                                        else -> bookmarkLocation(bookmark)
+                                    }
+                                } else bookmarkLocation(bookmark)
+                                location?.let {
                                     StyledText(
-                                        text = location,
+                                        text = it,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = MaterialTheme.colorScheme.primary
                                         ),

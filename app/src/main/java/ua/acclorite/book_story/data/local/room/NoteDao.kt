@@ -15,6 +15,9 @@ import ua.acclorite.book_story.data.local.dto.NoteEntity
 
 @Dao
 interface NoteDao {
+    @Query("SELECT * FROM NoteEntity ORDER BY createdAt DESC")
+    fun getAllNotes(): Flow<List<NoteEntity>>
+
     @Query("SELECT * FROM NoteEntity WHERE bookId = :bookId ORDER BY createdAt DESC")
     fun getNotesForBook(bookId: Int): Flow<List<NoteEntity>>
 

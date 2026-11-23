@@ -10,6 +10,9 @@ import android.app.Application
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.yield
 import ua.acclorite.book_story.core.helpers.clearAllMarkdown
 import ua.acclorite.book_story.core.log.logE
@@ -47,7 +50,8 @@ class PdfTextParser @Inject constructor(
             val pdfStripper = PDFTextStripper()
             pdfStripper.paragraphStart = "</br>"
 
-            PDDocument.load(cachedFile.openInputStream()).use { document ->
+            val input = cachedFile.openInputStream() ?: error("Unable to open PDF")
+            input.use { stream -> PDDocument.load(stream).use { document ->
                 // Per-page extraction instead of a single getText over the whole
                 // document, so reading progress can be reported
                 val totalPages = document.numberOfPages
@@ -61,27 +65,16 @@ class PdfTextParser @Inject constructor(
                     onProgress(EXTRACTION_END * pageIndex / totalPages)
                 }
                 oldText = textBuilder.toString().replace("\r", "")
-            }
+            } }
 
             yield()
 
             val readerText = mutableListOf<ReaderText>()
             val textLength = oldText.length.coerceAtLeast(1)
-            val text = oldText.filterIndexed { index, c ->
-                yield()
-
-                if (index % 8192 == 0) {
-                    onProgress(
-                        EXTRACTION_END +
-                                (CHAR_FILTER_END - EXTRACTION_END) * index / textLength
-                    )
-                }
-
-                if (c == ' ') {
-                    oldText[index - 1] != ' '
-                } else {
-                    true
-                }
+            val context = currentCoroutineContext()
+            val text = collapsePdfSpaces(oldText) { index ->
+                context.ensureActive()
+                onProgress(EXTRACTION_END + (CHAR_FILTER_END - EXTRACTION_END) * index / textLength)
             }
 
             yield()
@@ -104,41 +97,10 @@ class PdfTextParser @Inject constructor(
                         )
                     }
 
-                    val line = string.trim()
+                    appendPdfLine(lines, string)
 
-                    if (index == 0) {
-                        lines.add(line)
-                        return@forEachIndexed
-                    }
-
-                    if (line.all { it.isDigit() }) {
-                        return@forEachIndexed
-                    }
-
-                    if (line.first().isLowerCase()) {
-                        val currentLine = lines[lines.lastIndex]
-
-                        if (currentLine.last() == '-') {
-                            if (currentLine[currentLine.lastIndex - 1].isLowerCase()) {
-                                lines[lines.lastIndex] = currentLine.dropLast(1) + line
-                                return@forEachIndexed
-                            }
-                        }
-
-                        lines[lines.lastIndex] += " $line"
-                        return@forEachIndexed
-                    }
-
-                    if (line.first().isUpperCase() || line.first().isDigit()) {
-                        lines.add(line)
-                        return@forEachIndexed
-                    }
-
-                    if (line.first().isLetter()) {
-                        lines[lines.lastIndex] += " $line"
-                        return@forEachIndexed
-                    }
-
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     e.printStackTrace()
                     return@forEachIndexed
@@ -188,7 +150,6 @@ class PdfTextParser @Inject constructor(
             onProgress(1f)
 
             if (
-                readerText.filterIsInstance<ReaderText.Text>().isEmpty() ||
                 readerText.filterIsInstance<ReaderText.Chapter>().isEmpty()
             ) {
                 logE(TAG, "Could not extract text from PDF.")
@@ -197,6 +158,8 @@ class PdfTextParser @Inject constructor(
 
             logI(TAG, "Successfully finished PDF parsing.")
             readerText
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logE(TAG, "Could not parse text with message: ${e.message}.")
             emptyList()

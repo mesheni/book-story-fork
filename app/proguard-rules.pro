@@ -1,4 +1,6 @@
 # Proguard-rules
+# PDFium's JNI bindings resolve these classes and members by name.
+-keep class !com.ahmer.pdfium.DataBinderMapperImpl,com.ahmer.pdfium.** { *; }
 -dontwarn android.content.res.**
 -dontwarn com.gemalto.jp2.JP2Decoder
 -dontwarn com.google.auto.service.AutoService

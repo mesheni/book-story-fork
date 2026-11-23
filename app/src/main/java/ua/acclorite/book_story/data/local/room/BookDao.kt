@@ -35,6 +35,9 @@ interface BookDao {
     @Query("SELECT * FROM bookentity WHERE sourceUri = :sourceUri LIMIT 1")
     suspend fun findBookBySourceUri(sourceUri: String): BookEntity?
 
+    @Query("SELECT COUNT(*) FROM bookentity WHERE sourceUri = :sourceUri")
+    suspend fun countBooksBySourceUri(sourceUri: String): Int
+
     @Delete
     suspend fun deleteBook(book: BookEntity): Int
 

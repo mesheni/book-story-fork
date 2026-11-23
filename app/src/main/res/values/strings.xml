@@ -5,6 +5,7 @@
   -->
 
 <resources>
+    <string name="pdf_external_open_error">Could not open or save the PDF. Please try again.</string>
     <!-- Basic Strings -->
     <string name="app_name" translatable="false">Book\'s Story</string>
     <string name="default_string">Default</string>
@@ -112,6 +113,12 @@
     <string name="pdf_text_progress">Processing document… %1$d%%</string>
     <string name="pdf_search_page_number">Page %1$d</string>
     <string name="pdf_viewer_error">Could not open this PDF</string>
+    <string name="pdf_go_to_page">Go to page</string>
+    <string name="pdf_page_range">Page (1–%1$d)</string>
+    <string name="pdf_retry">Retry</string>
+    <string name="pdf_page_error">Could not render page %1$d</string>
+    <string name="pdf_text_unavailable">Could not extract text. The document may contain only scanned images.</string>
+    <string name="pdf_anchor_unavailable">The original location is no longer available</string>
     <string name="change_path">Change path</string>
     <string name="add_folder">Add folder</string>
     <string name="edit">Edit</string>
@@ -434,6 +441,39 @@
 
     <!-- BookInfo -->
     <string name="start_reading">Start</string>
+    <string name="library_notes">All notes</string>
+    <string name="backup_title">Backup</string>
+    <string name="backup_description">Save library data and settings; optionally include book files.</string>
+    <string name="backup_include_books">Include book files</string>
+    <string name="backup_without_books">Save library data and settings. Book files are not included.</string>
+    <string name="backup_export">Save backup</string>
+    <string name="backup_working">Saving…</string>
+    <string name="backup_export_success">Backup saved</string>
+    <string name="backup_export_error">Could not save backup</string>
+    <string name="backup_import">Restore backup</string>
+    <string name="backup_import_confirm">Replace current library data and settings with the backup? Books: %1$d. Included files: %2$d. Books without files may need to be reconnected.</string>
+    <string name="backup_import_success">Backup restored</string>
+    <string name="backup_import_error">Could not restore backup</string>
+    <string name="reading_time_option">Remaining reading time</string>
+    <string name="auto_reading_pace">Adjust speed automatically</string>
+    <string name="auto_reading_pace_desc">Use the selected speed until enough reading data is available</string>
+    <string name="reading_time_option_desc">Show an estimated time until the end of the chapter or book</string>
+    <string name="reading_speed_option">Reading speed</string>
+    <string name="words_per_minute_unit">words/min</string>
+    <string name="reading_time_chapter">Chapter ≈ %1$d min</string>
+    <string name="reading_time_book">Book ≈ %1$d min</string>
+    <string name="pdf_thumbnails">Page previews</string>
+    <string name="pdf_outline">Contents</string>
+    <string name="pdf_outline_loading">Loading contents…</string>
+    <string name="pdf_outline_empty">This document has no contents.</string>
+    <string name="pdf_outline_error">Could not load contents.</string>
+    <string name="pdf_thumbnail_unavailable">Preview unavailable</string>
+    <string name="library_notes_all_books">All books</string>
+    <string name="library_notes_color">Color</string>
+    <string name="library_notes_all_colors">All colors</string>
+    <string name="library_notes_color_number">Color %1$d</string>
+    <string name="library_notes_empty">No matching notes</string>
+    <string name="recent_reading">Continue reading</string>
     <string name="continue_reading_query">Continue from %1$s</string>
     <string name="file_details">File details</string>
     <string name="file_path">Path</string>

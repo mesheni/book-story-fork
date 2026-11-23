@@ -185,6 +185,7 @@ fun ReaderContent(
 
     ReaderBottomSheet(
         bottomSheet = bottomSheet,
+        isPdfText = book.filePath.endsWith(".pdf", true) && book.pdfOpenMode == PdfOpenMode.TEXT,
         notes = notes,
         bookmarks = bookmarks,
         text = text,
@@ -339,6 +340,9 @@ fun ReaderContent(
     } else {
         ReaderErrorPlaceholder(
             errorMessage = errorMessage,
+            openPdfPages = if (book.filePath.endsWith(".pdf", true)) {
+                { selectPdfMode(ReaderEvent.OnSelectPdfMode(PdfOpenMode.NATIVE_PDF)) }
+            } else null,
             leave = leave,
             navigateToBookInfo = navigateToBookInfo,
             navigateBack = navigateBack

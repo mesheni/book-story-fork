@@ -14,6 +14,7 @@ import ua.acclorite.book_story.data.mapper.book.BookMapper
 import ua.acclorite.book_story.data.mapper.file.FileMapper
 import ua.acclorite.book_story.data.parser.cover.CoverParser
 import ua.acclorite.book_story.data.parser.text.TextParser
+import ua.acclorite.book_story.data.service.ExternalPdfSnapshotStore
 import ua.acclorite.book_story.domain.model.file.File
 import ua.acclorite.book_story.domain.model.library.Book
 import ua.acclorite.book_story.domain.model.reader.ReaderText
@@ -29,7 +30,8 @@ class BookRepositoryImpl @Inject constructor(
     private val fileMapper: FileMapper,
     private val coverParser: CoverParser,
     private val textParser: TextParser,
-    private val fileProvider: FileProvider
+    private val fileProvider: FileProvider,
+    private val snapshots: ExternalPdfSnapshotStore
 ) : BookRepository {
 
     override suspend fun searchBooks(query: String): Result<List<Book>> = runCatching {
@@ -93,6 +95,11 @@ class BookRepositoryImpl @Inject constructor(
                 database.pdfPageTextDao.deletePagesForBook(book.id)
                 database.noteDao.deleteNotesForBook(book.id)
                 database.bookmarkDao.deleteBookmarksForBook(book.id)
+            }
+            book.sourceUri?.let { sourceUri ->
+                snapshots.withLock {
+                    if (database.bookDao.countBooksBySourceUri(sourceUri) == 0) snapshots.delete(sourceUri)
+                }
             }
         }
     }
